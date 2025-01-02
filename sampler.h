@@ -1,16 +1,25 @@
-#define DEFAULT_SAMPLE_SIZE 2646000 // 60 seconds at 44100 hz
+#include <stdio.h>
+#include <stdint.h>
+
+#define DEFAULT_SAMPLE_SIZE 1323000 // 30 seconds at 44100 hz
 
 struct sample {
-	float* left; 	// left channel data
-	float* right;		// right channel data
-	int size;		// size of audio data arrays
+	int16_t* data; 		// interleaved audio data
+	int size;		// num of samples per channel
+	int num_channels;
 };
 
 struct sampler {
-	struct sample* bank;	// array of all samples
+	struct sample** bank;	// array of all samples
 	int bank_size;
 };
 
-int init_sampler(struct sampler* s);
+struct sampler* init_sampler(void);
 
 int add_sample(struct sampler* s);
+
+/* If new size is smaller than current, sample is truncated
+ * If new size is larger, newly allocated memory is initialized to 0 */
+int resize_sample(struct sample* samp, int s);
+
+int load_wav(FILE* f, struct sample* s);
