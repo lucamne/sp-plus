@@ -2,8 +2,7 @@
 
 int main(void)
 {
-	float f = 0.5;
-	int i = f;
-	printf("%d\n", i);
-	return 0;
+	int n = 1;
+	// little endian if true
+	if(*(char *)&n == 1) {printf("true");}
 }
