@@ -14,9 +14,11 @@ int main(int argc, char** argv)
 	}
 
 	struct wav_file* wav = load_wav(TEST_WAV);
+	/*
 	for (int i = 0; i < wav->num_samples; i ++) {
 		if (wav->data[i] != 0)
 			printf("sample: %d, val: %d\n", i, wav->data[i]);
 	}
+	*/
 	return 0;
 }

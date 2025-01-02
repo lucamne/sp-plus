@@ -2,7 +2,7 @@
 
 struct wav_file {
 	// fmt chunk
-	int16_t fmt_ck_size;
+	int32_t fmt_ck_size;
 	int16_t format;
 	int16_t num_channels;
 	int32_t samples_per_sec;
@@ -15,7 +15,7 @@ struct wav_file {
 	int32_t sub_format[4];
 
 	// data chunk
-	int16_t data_ck_size;
+	int32_t data_ck_size;
 	int16_t* data;
 	int num_samples;
 };

@@ -68,16 +68,16 @@ struct wav_file* load_wav(const char* path)
 		wav_read_error(f, wav);
 		return NULL;
 	}
-	wav->format = buffer[0] >> 16;		
+	wav->format = buffer[0] & 0xFFFF;		
 	if (wav->format != 1) {			// support only PCM for now
 		wav_read_error(f, wav);
 		return NULL;
 	}
-	wav->num_channels = buffer[0] & 0xFF;	
+	wav->num_channels = buffer[0] >> 16;	
 	wav->samples_per_sec = buffer[1];
 	wav->bytes_per_sec = buffer[2];
-	wav->block_size = buffer[3] >> 16;
-	wav->bits_per_sample = (buffer[3] & 0xFF) * 8;
+	wav->block_size = buffer[3] & 0xFFFF;
+	wav->bits_per_sample = buffer[3] >> 16;
 	if (wav->bits_per_sample != 16)
 		fprintf(stderr, "Warning bitdepth is %d\n", wav->bits_per_sample);
 
