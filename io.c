@@ -74,12 +74,12 @@ struct wav_file* load_wav(const char* path)
 		return NULL;
 	}
 	wav->num_channels = buffer[0] >> 16;	
-	wav->samples_per_sec = buffer[1];
+	wav->sample_rate = buffer[1];
 	wav->bytes_per_sec = buffer[2];
 	wav->block_size = buffer[3] & 0xFFFF;
-	wav->bits_per_sample = buffer[3] >> 16;
-	if (wav->bits_per_sample != 16)
-		fprintf(stderr, "Warning bitdepth is %d\n", wav->bits_per_sample);
+	wav->bit_depth = buffer[3] >> 16;
+	if (wav->bit_depth != 16)
+		fprintf(stderr, "Warning bitdepth is %d\n", wav->bit_depth);
 
 	// read data chunk assuming no other chunks come next (ie. fact)
 	if (fread(buffer, sizeof(*buffer), 2, f) != 2) {
@@ -91,7 +91,7 @@ struct wav_file* load_wav(const char* path)
 		return NULL;
 	}
 	wav->data_ck_size = buffer[1];
-	wav->num_samples = wav->data_ck_size / wav->block_size / wav->num_channels;
+	wav->num_samples = wav->data_ck_size / wav->block_size;
 	wav->data = malloc(wav->data_ck_size);
 	if (!wav->data) {
 		wav_read_error(f, wav);
@@ -104,4 +104,18 @@ struct wav_file* load_wav(const char* path)
 	fclose(f);
 
 	return wav;
+}
+
+void print_wav(const struct wav_file* w)
+{
+	printf(	"channels: %d\n"
+		"sample rate: %dHz\n"
+		"bitdepth: %d\n"
+		"num samples: %d\n"
+		"size: %.1fkB\n",
+		w->num_channels,
+		w->sample_rate,
+		w->bit_depth,
+		w->num_samples,
+		((float) w->data_ck_size) / 1000.0f);
 }
