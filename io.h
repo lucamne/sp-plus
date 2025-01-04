@@ -17,7 +17,7 @@ struct wav_file {
 
 	// data chunk
 	int32_t data_ck_size;		// data size in bytes
-	int16_t* data;			// raw data (little endian)
+	int64_t* data;			// raw data (little endian)
 	int num_samples;		// data_ck_size / block_size
 };
 
