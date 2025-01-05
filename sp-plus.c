@@ -16,5 +16,7 @@ int main(int argc, char** argv)
 	struct wav_file* wav = load_wav(TEST_WAV);
 	print_wav(wav);
 
+	play_clip(wav->data, wav->data_ck_size);
+
 	return 0;
 }

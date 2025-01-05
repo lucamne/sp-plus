@@ -90,8 +90,8 @@ int main(void)
 {
 	char dev_id[64] = "";
 	select_device(dev_id, 64);
-	
-	printf("Selected device: %s\n", dev_id);
+
+
 
 	return 0;
 }

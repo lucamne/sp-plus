@@ -110,11 +110,13 @@ void print_wav(const struct wav_file* w)
 {
 	printf(	"channels: %d\n"
 		"sample rate: %dHz\n"
+		"bytes per sec: %d\n"
 		"bitdepth: %d\n"
 		"num samples: %d\n"
 		"size: %.1fkB\n",
 		w->num_channels,
 		w->sample_rate,
+		w->bytes_per_sec,
 		w->bit_depth,
 		w->num_samples,
 		((float) w->data_ck_size) / 1000.0f);

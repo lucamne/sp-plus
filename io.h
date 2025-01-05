@@ -24,3 +24,6 @@ struct wav_file {
 struct wav_file* load_wav(const char* path);
 
 void print_wav(const struct wav_file* w);
+
+// assumes 22050hz, 16bit, 2 channel
+void play_clip (void* clip, int clip_size);
