@@ -9,6 +9,7 @@ struct sample {
 	int frame_size;		// size in bytes
 	char* next_frame;
 	int id;
+	int rate;		// sample_rate in Hz
 	// playback options
 	bool playing;		// is sample currently playing
 	bool loop;		// is sample in loop mode

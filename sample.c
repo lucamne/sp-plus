@@ -13,6 +13,7 @@ struct sample* init_sample(void)
 	s->frame_size = 0;
 	s->next_frame = NULL;
 	s->id  = _id++;
+	s->rate = 0;
 	s->playing = false;
 	s->loop = false;
 	return s;
@@ -26,6 +27,7 @@ int load_wav_into_sample(const char* path, struct sample* s)
 
 	s->data_size = w->data_size;
 	s->frame_size = w->frame_size;
+	s->rate = w->sample_rate;
 
 	s->data = realloc(s->data, s->data_size);
 	memcpy(s->data, w->data, s->data_size);
