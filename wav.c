@@ -76,7 +76,7 @@ struct wav_file* load_wav(const char* path)
 	wav->num_channels = buffer[0] >> 16;	
 	wav->sample_rate = buffer[1];
 	wav->bytes_per_sec = buffer[2];
-	wav->block_size = buffer[3] & 0xFFFF;
+	wav->frame_size = buffer[3] & 0xFFFF;
 	wav->bit_depth = buffer[3] >> 16;
 	if (wav->bit_depth != 16)
 		fprintf(stderr, "Warning bitdepth is %d\n", wav->bit_depth);
@@ -90,14 +90,14 @@ struct wav_file* load_wav(const char* path)
 		wav_read_error(f, wav);
 		return NULL;
 	}
-	wav->data_ck_size = buffer[1];
-	wav->num_samples = wav->data_ck_size / wav->block_size;
-	wav->data = malloc(wav->data_ck_size);
+	wav->data_size = buffer[1];
+	wav->num_samples = wav->data_size / wav->frame_size;
+	wav->data = malloc(wav->data_size);
 	if (!wav->data) {
 		wav_read_error(f, wav);
 		return NULL;
 	}
-	if (fread(wav->data, 1, wav->data_ck_size, f) != (size_t) wav->data_ck_size) {
+	if (fread(wav->data, 1, wav->data_size, f) != (size_t) wav->data_size) {
 		wav_read_error(f, wav);
 		return NULL;
 	}
@@ -119,5 +119,5 @@ void print_wav(const struct wav_file* w)
 		w->bytes_per_sec,
 		w->bit_depth,
 		w->num_samples,
-		((float) w->data_ck_size) / 1000.0f);
+		((float) w->data_size) / 1000.0f);
 }

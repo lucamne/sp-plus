@@ -1,5 +1,6 @@
-#include "sampler.h"
 #include "io.h"
+#include "sample.h"
+#include "ring_buffer.h"
 
 #include <stdio.h>
 
@@ -7,16 +8,19 @@
 
 int main(int argc, char** argv)
 {
-	struct sampler* s = init_sampler(); 
-	if (!s) {
-		fprintf(stderr, "Error initializing sampler\n");
-		return 0;
-	}
+	struct sample* samp = init_sample();
+	load_wav_into_sample(TEST_WAV, samp);
 
-	struct wav_file* wav = load_wav(TEST_WAV);
-	print_wav(wav);
+	struct ring_buffer* rb = init_ring_buf(2000); 
+	if (!rb)
+		printf("Error initializing ring buffer");
 
-	play_clip(wav->data, wav->data_ck_size);
+	char* tmp = calloc(1, samp->data_size);
+	const int transfer_size = samp->frame_size;
+	while (1) {
+		
+
+	play_clip(samp->data, samp->data_size);
 
 	return 0;
 }

@@ -1,2 +1,2 @@
 all:
-	gcc sp-plus.c sampler.c io.c alsa-play.c -o sp-plus.o -Wextra -g -lasound
+	gcc sp-plus.c wav.c alsa.c sample.c ring_buffer.c -o sp-plus.o -Wextra -g -lasound

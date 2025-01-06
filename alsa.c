@@ -18,7 +18,9 @@ snd_pcm_t* abuf_create(int *buf_size, int *frame_size)
 	const char *device_id = "plughw:1,0"; // Use default device
 	int mode = SND_PCM_STREAM_PLAYBACK;
 	// mode is nonblocking
-	assert(0 == snd_pcm_open(&pcm, device_id, mode, 0));
+	const int t = snd_pcm_open(&pcm, device_id, mode, 0); 
+	printf("%s\n", snd_strerror(t));
+	assert(0 == t);
 
 	// Get device property-set
 	snd_pcm_hw_params_t *params;
