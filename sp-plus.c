@@ -33,8 +33,8 @@ int main(int argc, char** argv)
 		return 0;
 	}
 	struct timespec r = {};
-	r.tv_sec = 0;
-	r.tv_nsec = 500000000;
+	r.tv_sec = 1;
+	r.tv_nsec = 0;
 
 	int bytes_seen = 0;
 	while (1) {
@@ -49,6 +49,18 @@ int main(int argc, char** argv)
 		}
 	}
 	
+	bytes_seen = 0;
+	while (1) {
+		if (bytes_seen + 4410 >= samp->data_size)
+			break;
+
+		if (22050 - rb->in_use >= 4410) {
+			const int n = write_to_buf(rb, samp->data + bytes_seen, 4410);
+			bytes_seen += n;
+		} else {
+			nanosleep(&r, NULL);
+		}
+	}
 	// play_clip(samp->data, samp->data_size);
 
 	return 0;
