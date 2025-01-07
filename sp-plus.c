@@ -3,6 +3,7 @@
 #include "sample.h"
 #include "ring_buffer.h"
 
+#include <time.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,24 +21,34 @@ int main(int argc, char** argv)
 		return 0;
 	}
 	struct alsa_dev* a_dev = 
-		open_alsa_dev(22050, 1, 22050 / 2, 2);
+		open_alsa_dev(22050, 1);
 	if (!a_dev) {
 		printf("Error opening audio device\n");
 		return 0;
 	}
+
 	int err = start_alsa_dev(a_dev, rb);
 	if (err) {
 		printf("Error starting audio\n");
 		return 0;
 	}
+	struct timespec r = {};
+	r.tv_sec = 0;
+	r.tv_nsec = 500000000;
 
 	int bytes_seen = 0;
-	while (bytes_seen + 2 <= samp->data_size) {
-		const int n = write_to_buf(rb, samp->data + bytes_seen, 2);
-		bytes_seen += n;
+	while (1) {
+		if (bytes_seen + 4410 >= samp->data_size)
+			break;
+
+		if (22050 - rb->in_use >= 4410) {
+			const int n = write_to_buf(rb, samp->data + bytes_seen, 4410);
+			bytes_seen += n;
+		} else {
+			nanosleep(&r, NULL);
+		}
 	}
 	
-
 	// play_clip(samp->data, samp->data_size);
 
 	return 0;
