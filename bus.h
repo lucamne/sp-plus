@@ -6,7 +6,7 @@
 
 struct bus {
 	struct sample* sample_in;	// sample input if any
-	struct bus** bus_in;		// bus inputs
+	struct bus** bus_ins;		// bus inputs
 	int num_bus_ins;
 
 	float atten;			// attenuation, 0.0 is none 1.0 is max

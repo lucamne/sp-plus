@@ -26,7 +26,7 @@ struct sample* init_sample(void)
 	s->next_frame = NULL;
 	s->id  = _id++;
 	s->rate = 0;
-	s->playing = false;
+	s->playing = true;
 	s->loop = false;
 	return s;
 }

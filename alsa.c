@@ -5,6 +5,7 @@
 
 static unsigned int period_time = 100000;	// period time in usec
 static unsigned int buffer_time = 500000;	// buffer time in usec
+static struct bus* master_bus;
 
 static int set_hwparams(struct alsa_dev* a_dev, snd_pcm_hw_params_t* params)
 {
@@ -176,7 +177,6 @@ static int xrun_recovery(snd_pcm_t* pcm, int err)
 }
 
 struct async_private_data {
-	struct ring_buf* ring_buf;
 	int frame_size;
 	snd_pcm_uframes_t period_size;
 };
@@ -186,7 +186,9 @@ static void async_callback(snd_async_handler_t *ahandler)
 	snd_pcm_t *handle = snd_async_handler_get_pcm(ahandler);
 	struct async_private_data *data = 
 		snd_async_handler_get_callback_private(ahandler);
-
+	assert(data);
+	assert(master_bus->sample_in->id == 0);
+	assert(master_bus->num_bus_ins == 0);
 	const snd_pcm_channel_area_t *my_areas;
 	snd_pcm_uframes_t offset, frames, size;
 	snd_pcm_sframes_t avail, commitres;
@@ -241,10 +243,6 @@ static void async_callback(snd_async_handler_t *ahandler)
 		size = data->period_size;
 		while (size > 0) {
 			frames = size;
-			// if not enough data in buffer then exit callback
-			if ((snd_pcm_uframes_t) data->ring_buf->in_use / 
-					data->frame_size < frames)
-				break;
 
 			err = snd_pcm_mmap_begin(
 					handle, &my_areas, &offset, &frames);
@@ -256,11 +254,10 @@ static void async_callback(snd_async_handler_t *ahandler)
 				}
 				first = 1;
 			}
-			read_to_dest(
-					data->ring_buf, 
+			process_bus(	master_bus,
 					my_areas[0].addr + 
 					offset * my_areas[0].step / 8,
-					frames * data->frame_size);
+					frames);
 
 			commitres = snd_pcm_mmap_commit(handle, offset, frames);
 			if (commitres < 0 || (snd_pcm_uframes_t)commitres != frames) {
@@ -281,10 +278,10 @@ static void async_callback(snd_async_handler_t *ahandler)
 // might need to add the unused params
 static int async_loop(
 		snd_pcm_t* handle, 
-		struct ring_buf* rb, 
 		int frame_size, 
 		snd_pcm_uframes_t period_size)
 {
+	assert(master_bus->sample_in->id == 0 && master_bus->num_bus_ins == 0);
 	struct async_private_data data;
 	snd_async_handler_t *ahandler;
 	const snd_pcm_channel_area_t *my_areas;
@@ -292,7 +289,6 @@ static int async_loop(
 	snd_pcm_sframes_t commitres;
 	int err, count;
 
-	data.ring_buf = rb;
 	data.frame_size = frame_size;
 	data.period_size = period_size;
 
@@ -325,13 +321,10 @@ static int async_loop(
 					exit(EXIT_FAILURE);
 				}
 			}
-			// buffer mmap with blank data
-			char* empty = calloc(frames, frame_size);
-			memcpy(my_areas[0].addr + offset * my_areas[0].step / 8, 
-					empty,
-					frames * frame_size);
-			free(empty);
-
+			// add data to bus
+			process_bus(	master_bus, 
+					my_areas[0].addr + offset * my_areas[0].step / 8, 
+					frames);
 			commitres = snd_pcm_mmap_commit(handle, offset, frames);
 			if (commitres < 0 || 
 					(snd_pcm_uframes_t)commitres != frames) {
@@ -353,6 +346,9 @@ static int async_loop(
 		printf("Start error: %s\n", snd_strerror(err));
 		exit(EXIT_FAILURE);
 	}
+	/*while(1)
+		sleep(1);
+		*/
 	return 0;
 }
 
@@ -391,16 +387,18 @@ struct alsa_dev* open_alsa_dev(int r, int num_c)
 	return a_dev;
 }
 
-int start_alsa_dev(struct alsa_dev* a_dev, struct ring_buf* buf)
+int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master)
 {
+	assert(master->sample_in->id == 0 && master->num_bus_ins == 0);
 	int err = snd_pcm_prepare(a_dev->pcm);
 	if (err < 0) {
 		printf("Failed to prepare pcm device\n");
 		return 1;
 	}
+	master_bus = master;
 	err = async_loop(
 			a_dev->pcm, 
-			buf, a_dev->num_channels * 2, 
+			a_dev->num_channels * 2, 
 			a_dev->period_size);
 
 	if (err < 0) {

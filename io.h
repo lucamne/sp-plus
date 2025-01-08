@@ -1,7 +1,7 @@
 #ifndef IO_H
 #define IO_H
 
-#include "ring_buffer.h"
+#include "bus.h"
 
 #include <stdint.h>
 #include <alsa/asoundlib.h>
@@ -46,7 +46,7 @@ struct alsa_dev {
 // returns an alsa pcm device for playback, returns NULL on failure
 struct alsa_dev* open_alsa_dev(int r, int num_c);
 // starts an alsa playback device which pulls from ring buffer, returns 1 on failure
-int start_alsa_dev(struct alsa_dev* a_dev, struct ring_buf* buf);
+int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master);
 // assumes 22050hz, 16bit, 2 channel
 void play_clip (void* clip, int clip_size);
 

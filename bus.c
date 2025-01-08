@@ -1,13 +1,16 @@
 #include "bus.h"
+#include "defs.h"
 
+#include <string.h>
+#include <stdlib.h>
 
 struct bus* init_bus(void)
 {
-	struct bus* b = malloc(sizoef(struct bus));
+	struct bus* b = malloc(sizeof(struct bus));
 	if (!b)
 		return NULL;
 	b->sample_in = NULL;
-	b->bus_in = NULL;
+	b->bus_ins = NULL;
 	b->num_bus_ins = 0;
 	b->atten = 0.0f;
 	b->pan = 0.5f;
@@ -17,39 +20,37 @@ struct bus* init_bus(void)
 	return b;
 }
 
-static int16_t g_process_out [NUM_CHANNELS];
 
-static void process_recurse(struct bus* b)
+static void process_leaf_nodes(struct bus* b, int16_t* out)
 {
 	struct sample* s = b->sample_in;
+	// if bus input is a sample
 	if (s && s->playing) {
-		g_process_out[0] = *s->next_frame;
-		g_process_out[1] += *(s->next_frame + 1);
+		out[0] += *s->next_frame;
+		out[1] += *(s->next_frame + 1);
 		// increment frame pointer or reset to beginning
-		if (s->next_frame + 2 - s->data >= s->num_frames * 2) {
+		if (s->next_frame + 2 >= s->data + s->num_frames * 2) {
 			s->next_frame = s->data;
 			s->playing = s->loop ? true : false;
 		} else {
 			s->next_frame += 2;
 		}
-		return f;
+		return;
 	}
-	// if bus not connected to a sample
-	struct p_frame f;
-	int16_t l = 0;
-	int16_t r = 0;
-	for (int i = 0; i < b->num_bus_ins; i++) {
-		f = process_recurse(b->bus_in[i]);
-		l += f.left;
-		r += f.right;
-	}
-	return f;
+
+	for (int i = 0; i < b->num_bus_ins; i++)
+		process_leaf_nodes(b->bus_ins[i], out);
 }
-
-
 
 int process_bus(struct bus* master, void* dest, int frames)
 {
-	g_process_out = {0, 0};
-	for (int i = 0; i < frames; i++) {
-		const struct p_frame f = p_frame_process_recurse(
+	// process i frames
+	for (int i = 0; i < frames; i++){
+		int16_t* out = calloc(2, sizeof(int16_t));
+		out[0] = 0;
+		out[1] = 0;
+		process_leaf_nodes(master, out);
+		memcpy((char *)dest + i * FRAME_SIZE, out, FRAME_SIZE);
+	}
+	return 0;
+}
