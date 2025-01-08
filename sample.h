@@ -2,12 +2,14 @@
 #define SAMPLE_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 struct sample {
-	char* data;
+	int16_t* data;
 	int data_size;		// size in bytes
 	int frame_size;		// size in bytes
-	char* next_frame;
+	int16_t* next_frame;
+	int32_t num_frames;
 	int id;
 	int rate;		// sample_rate in Hz
 	// playback options
@@ -18,9 +20,5 @@ struct sample {
 struct sample* init_sample(void);
 
 int load_wav_into_sample(const char* path, struct sample* s);
-
-const char* get_next_frame(struct sample* s);
-// reset next_frame pointer to start
-int reset_sample(struct sample* s);
 
 #endif

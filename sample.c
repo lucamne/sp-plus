@@ -57,6 +57,7 @@ int load_wav_into_sample(const char* path, struct sample* s)
 
 	s->data_size = w->data_size;
 	s->frame_size = w->frame_size;
+	s->num_frames = w->num_samples;
 	s->rate = w->sample_rate;
 
 	s->data = realloc(s->data, s->data_size);
@@ -67,28 +68,5 @@ int load_wav_into_sample(const char* path, struct sample* s)
 
 	print_sample(s);
 
-	return 0;
-}
-
-const char* get_next_frame(struct sample* s)
-{	
-	if (s->next_frame >= s->data + s->data_size) {
-		s->next_frame = s->data;
-		if (!s->loop)
-			s->playing = false;
-	}
-
-	if (!s->playing)
-		return NULL;
-
-	char* r = s->next_frame;
-	s->next_frame += s->frame_size;
-	return r;
-}
-
-int reset_sample(struct sample* s)
-{
-	s->next_frame = s->data;
-	s->playing = false;
 	return 0;
 }

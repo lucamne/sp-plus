@@ -1,7 +1,7 @@
 #include "io.h"
 #include "defs.h"
 #include "sample.h"
-#include "ring_buffer.h"
+#include "bus.h"
 
 #include <time.h>
 #include <assert.h>
@@ -15,11 +15,9 @@ int main(int argc, char** argv)
 	struct sample* samp = init_sample();
 	load_wav_into_sample(TEST_WAV, samp);
 
-	struct ring_buf* rb = init_ring_buf(44100); 
-	if (!rb) {
-		printf("Error initializing ring buffer");
-		return 0;
-	}
+	struct bus* master = init_bus();
+	master->sample_in = samp;
+
 	struct alsa_dev* a_dev = 
 		open_alsa_dev(22050, 2);
 	if (!a_dev) {
