@@ -103,6 +103,8 @@ struct wav_file* load_wav(const char* path)
 	}
 	fclose(f);
 
+	print_wav(wav);
+
 	return wav;
 }
 
