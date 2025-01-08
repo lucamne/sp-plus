@@ -36,11 +36,10 @@ int main(int argc, char** argv)
 		printf("Error starting audio\n");
 		return 0;
 	}
-	
+
+
 	while(1) {
 		sleep(1);
-		assert(samp->id == samp->id);
-		assert(samp->next_frame[0] == samp->next_frame[1]);
 	}
 	return 0;
 }

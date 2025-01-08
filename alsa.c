@@ -282,17 +282,18 @@ static int async_loop(
 		snd_pcm_uframes_t period_size)
 {
 	assert(master_bus->sample_in->id == 0 && master_bus->num_bus_ins == 0);
-	struct async_private_data data;
+	// maybe need to free later
+	struct async_private_data* data = malloc(sizeof(struct async_private_data));
 	snd_async_handler_t *ahandler;
 	const snd_pcm_channel_area_t *my_areas;
 	snd_pcm_uframes_t offset, frames, size;
 	snd_pcm_sframes_t commitres;
 	int err, count;
 
-	data.frame_size = frame_size;
-	data.period_size = period_size;
+	data->frame_size = frame_size;
+	data->period_size = period_size;
 
-	err = snd_async_add_pcm_handler(&ahandler, handle, async_callback, &data);
+	err = snd_async_add_pcm_handler(&ahandler, handle, async_callback, data);
 	if (err < 0) {
 		printf("Unable to register async handler\n");
 		exit(EXIT_FAILURE);
@@ -346,9 +347,6 @@ static int async_loop(
 		printf("Start error: %s\n", snd_strerror(err));
 		exit(EXIT_FAILURE);
 	}
-	/*while(1)
-		sleep(1);
-		*/
 	return 0;
 }
 
@@ -362,7 +360,7 @@ struct alsa_dev* open_alsa_dev(int r, int num_c)
 	snd_pcm_hw_params_alloca(&hwparams);
 	snd_pcm_sw_params_alloca(&swparams);
 
-	a_dev->dev_id = "plughw:1,0";
+	a_dev->dev_id = "plughw:0,0";
 	a_dev->num_channels = num_c;
 	a_dev->rate = r;
 	// init pcm handle
@@ -389,7 +387,6 @@ struct alsa_dev* open_alsa_dev(int r, int num_c)
 
 int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master)
 {
-	assert(master->sample_in->id == 0 && master->num_bus_ins == 0);
 	int err = snd_pcm_prepare(a_dev->pcm);
 	if (err < 0) {
 		printf("Failed to prepare pcm device\n");

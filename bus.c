@@ -51,6 +51,7 @@ int process_bus(struct bus* master, void* dest, int frames)
 		out[1] = 0;
 		process_leaf_nodes(master, out);
 		memcpy((char *)dest + i * FRAME_SIZE, out, FRAME_SIZE);
+		free(out);
 	}
 	return 0;
 }
