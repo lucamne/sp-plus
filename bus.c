@@ -20,8 +20,9 @@ struct bus* init_bus(void)
 	return b;
 }
 
+static int16_t out[NUM_CHANNELS] = {0, 0};
 
-static void process_leaf_nodes(struct bus* b, int16_t* out)
+static void process_leaf_nodes(struct bus* b)
 {
 	struct sample* s = b->sample_in;
 	// if bus input is a sample
@@ -39,19 +40,17 @@ static void process_leaf_nodes(struct bus* b, int16_t* out)
 	}
 
 	for (int i = 0; i < b->num_bus_ins; i++)
-		process_leaf_nodes(b->bus_ins[i], out);
+		process_leaf_nodes(b->bus_ins[i]);
 }
 
 int process_bus(struct bus* master, void* dest, int frames)
 {
 	// process i frames
 	for (int i = 0; i < frames; i++){
-		int16_t* out = calloc(2, sizeof(int16_t));
 		out[0] = 0;
 		out[1] = 0;
-		process_leaf_nodes(master, out);
+		process_leaf_nodes(master);
 		memcpy((char *)dest + i * FRAME_SIZE, out, FRAME_SIZE);
-		free(out);
 	}
 	return 0;
 }

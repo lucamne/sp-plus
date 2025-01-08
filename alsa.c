@@ -5,7 +5,6 @@
 
 static unsigned int period_time = 100000;	// period time in usec
 static unsigned int buffer_time = 500000;	// buffer time in usec
-static struct bus* master_bus;
 
 static int set_hwparams(struct alsa_dev* a_dev, snd_pcm_hw_params_t* params)
 {
@@ -179,6 +178,7 @@ static int xrun_recovery(snd_pcm_t* pcm, int err)
 struct async_private_data {
 	int frame_size;
 	snd_pcm_uframes_t period_size;
+	struct bus* master;
 };
 
 static void async_callback(snd_async_handler_t *ahandler)
@@ -186,9 +186,6 @@ static void async_callback(snd_async_handler_t *ahandler)
 	snd_pcm_t *handle = snd_async_handler_get_pcm(ahandler);
 	struct async_private_data *data = 
 		snd_async_handler_get_callback_private(ahandler);
-	assert(data);
-	assert(master_bus->sample_in->id == 0);
-	assert(master_bus->num_bus_ins == 0);
 	const snd_pcm_channel_area_t *my_areas;
 	snd_pcm_uframes_t offset, frames, size;
 	snd_pcm_sframes_t avail, commitres;
@@ -254,7 +251,7 @@ static void async_callback(snd_async_handler_t *ahandler)
 				}
 				first = 1;
 			}
-			process_bus(	master_bus,
+			process_bus(	data->master,
 					my_areas[0].addr + 
 					offset * my_areas[0].step / 8,
 					frames);
@@ -278,10 +275,10 @@ static void async_callback(snd_async_handler_t *ahandler)
 // might need to add the unused params
 static int async_loop(
 		snd_pcm_t* handle, 
+		struct bus* master,
 		int frame_size, 
 		snd_pcm_uframes_t period_size)
 {
-	assert(master_bus->sample_in->id == 0 && master_bus->num_bus_ins == 0);
 	// maybe need to free later
 	struct async_private_data* data = malloc(sizeof(struct async_private_data));
 	snd_async_handler_t *ahandler;
@@ -292,6 +289,7 @@ static int async_loop(
 
 	data->frame_size = frame_size;
 	data->period_size = period_size;
+	data->master = master;
 
 	err = snd_async_add_pcm_handler(&ahandler, handle, async_callback, data);
 	if (err < 0) {
@@ -323,8 +321,9 @@ static int async_loop(
 				}
 			}
 			// add data to bus
-			process_bus(	master_bus, 
-					my_areas[0].addr + offset * my_areas[0].step / 8, 
+			process_bus(	data->master, 
+					my_areas[0].addr + 
+					offset * my_areas[0].step / 8, 
 					frames);
 			commitres = snd_pcm_mmap_commit(handle, offset, frames);
 			if (commitres < 0 || 
@@ -392,9 +391,9 @@ int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master)
 		printf("Failed to prepare pcm device\n");
 		return 1;
 	}
-	master_bus = master;
 	err = async_loop(
 			a_dev->pcm, 
+			master,
 			a_dev->num_channels * 2, 
 			a_dev->period_size);
 
