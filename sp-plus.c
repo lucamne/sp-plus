@@ -18,11 +18,22 @@ void on_sigio(int sig)
 
 int main(int argc, char** argv)
 {
-	struct sample* samp = init_sample();
-	load_wav_into_sample(TEST_WAV, samp);
+	struct sample* samp1 = init_sample();
+	struct sample* samp2 = init_sample();
+	load_wav_into_sample(TEST_WAV, samp1);
+	load_wav_into_sample(TEST_WAV, samp2);
+	samp2->playing = false;
 
 	struct bus* master = init_bus();
-	master->sample_in = samp;
+	struct bus* sb1 = init_bus();
+	struct bus* sb2 = init_bus();
+	sb1->sample_in = samp1;
+	sb2->sample_in = samp2;
+	set_pan(sb1, 1.0f);
+	set_pan(sb2, -1.0f);
+
+	add_bus_in(master, sb1);
+	add_bus_in(master, sb2);
 
 	struct alsa_dev* a_dev = 
 		open_alsa_dev(22050, 2);
@@ -37,9 +48,14 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-
+	int c = 0;
 	while(1) {
 		sleep(1);
+		c++;
+		if (!samp2->playing && c >= 50){
+			samp2->playing = true;
+			printf("turned on samp2\n");
+		}
 	}
 	return 0;
 }
