@@ -1,3 +1,4 @@
+#include "defs.h"
 #include "sample.h"
 #include "io.h"
 
@@ -7,10 +8,8 @@
 static void print_sample(const struct sample* s)
 {
 	printf(
-			"\nSize: %dB\n"
 			"Frame size: %dB\n"
 			"Sample Rate: %dHz\n",
-			s->data_size,
 			s->frame_size,
 			s->rate);
 }
@@ -21,7 +20,6 @@ struct sample* init_sample(void)
 	static int _id = 0;
 	struct sample* s = malloc(sizeof(struct sample));
 	s->data = NULL;
-	s->data_size = 0;
 	s->frame_size = 0;
 	s->next_frame = NULL;
 	s->id  = _id++;
@@ -55,14 +53,26 @@ int load_wav_into_sample(const char* path, struct sample* s)
 		w->frame_size *= 2;
 	}
 
-	s->data_size = w->data_size;
-	s->frame_size = w->frame_size;
 	s->num_frames = w->num_samples;
+	s->frame_size = w->frame_size;
 	s->rate = w->sample_rate;
 
-	s->data = realloc(s->data, s->data_size);
-	memcpy(s->data, w->data, s->data_size);
+	assert(sizeof(float) >= 2);
+	s->data = realloc(s->data, sizeof(float) * s->num_frames * NUM_CHANNELS);
 	s->next_frame = s->data;
+	// convert data from int to float for later dsp
+	for (int i = 0; i < s->num_frames; i++) {
+		// convert left channel
+		float f = ((float) w->data[2 * i]) / 32768.0f;
+		if (f > 1.0f) f = 1.0f;
+		else if (f < -1.0f) f = -1.0f;
+		s->data[2 * i] = f;
+		// convert right channel
+		f = ((float) w->data[2 * i + 1]) / 32768.0f;
+		if (f > 1.0f) f = 1.0f;
+		else if (f < -1.0f) f = -1.0f;
+		s->data[2 * i + 1] = f;
+	}
 
 	free(w);
 

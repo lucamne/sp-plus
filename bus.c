@@ -53,30 +53,31 @@ int set_pan(struct bus* b, float p)
 	return 0;
 }
 
-static int16_t out[NUM_CHANNELS] = {0, 0};
+static float out[NUM_CHANNELS] = {0, 0};
 
 static void process_leaf_nodes(struct bus* b)
 {
 	// if bus input is a sample
 	struct sample* s = b->sample_in;
 	if (s && s->playing) {
-		int left = *s->next_frame;
-		int right = *(s->next_frame + 1);
+		float left = *s->next_frame;
+		float right = *(s->next_frame + 1);
 		// apply attenuation
-		left = (int) ((1.0f - b->atten) * (float) left);
-		right = (int) ((1.0f - b->atten) * (float) right);
+		left = (1.0f - b->atten) * left;
+		right = (1.0f - b->atten) * right;
 		// apply pan
-		left = (int) ((float) left * fmin(1.0f - (float) b->pan, 1.0f));
-		right = (int) ((float) right * fmin(1.0f + (float) b->pan, 1.0f));
-		out[0] += (int16_t) left;
-		out[1] += (int16_t) right;
+		left = left * fmin(1.0f - b->pan, 1.0f);
+		right = right * fmin(1.0f + b->pan, 1.0f);
+		out[0] += left;
+		out[1] += right;
 
 		// increment frame pointer or reset to beginning
-		if (s->next_frame + 2 >= s->data + s->num_frames * 2) {
+		if (s->next_frame + NUM_CHANNELS >= 
+				s->data + s->num_frames * NUM_CHANNELS) {
 			s->next_frame = s->data;
 			s->playing = s->loop ? true : false;
 		} else {
-			s->next_frame += 2;
+			s->next_frame += NUM_CHANNELS;
 		}
 		return;
 	}
@@ -92,7 +93,20 @@ int process_bus(struct bus* master, void* dest, int frames)
 		out[0] = 0;
 		out[1] = 0;
 		process_leaf_nodes(master);
-		memcpy((char *)dest + i * FRAME_SIZE, out, FRAME_SIZE);
+		// alsa expects 16 bit int
+		int16_t int_out[NUM_CHANNELS];
+		// convert left
+		int f = out[0] * 32768.0f; 
+		if (f > 32767.0f) f = 32767.0f;
+		if (f < -32768.0f) f = -32768.0f;
+		int_out[0] = (int16_t) f;
+		// convert right
+		f = out[1] * 32768.0f; 
+		if (f > 32767.0f) f = 32767.0f;
+		if (f < -32768.0f) f = -32768.0f;
+		int_out[1] = (int16_t) f;
+
+		memcpy((char *)dest + i * FRAME_SIZE, int_out, FRAME_SIZE);
 	}
 	return 0;
 }

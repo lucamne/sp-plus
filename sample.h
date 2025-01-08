@@ -5,10 +5,9 @@
 #include <stdint.h>
 
 struct sample {
-	int16_t* data;
-	int data_size;		// size in bytes
+	float* data;		// 16_bit float data
 	int frame_size;		// size in bytes
-	int16_t* next_frame;
+	float* next_frame;
 	int32_t num_frames;
 	int id;
 	int rate;		// sample_rate in Hz
