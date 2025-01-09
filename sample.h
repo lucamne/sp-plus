@@ -19,8 +19,4 @@ struct sample {
 struct sample* init_sample(void);
 
 int load_wav_into_sample(const char* path, struct sample* s);
-
-// resample a stereo sample
-int resample(struct sample* s, int rate_in, int rate_out);
-
 #endif
