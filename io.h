@@ -10,6 +10,7 @@
 /* WAV: wav.c */
 struct wav_file {
 	// fmt chunk
+	const char* path;
 	int32_t fmt_ck_size;		// fmt chunk size in bytes
 	int16_t format;			// audio format tag
 	int num_channels;

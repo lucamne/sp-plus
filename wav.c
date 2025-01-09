@@ -35,6 +35,7 @@ struct wav_file* load_wav(const char* path)
 	}
 
 	struct wav_file* wav = malloc(sizeof(struct wav_file));
+	wav->path = path;
 	int32_t buffer[12];
 
 	// read RIFF, WAVE, and fmt headers assuming they exist
@@ -110,16 +111,23 @@ struct wav_file* load_wav(const char* path)
 
 void print_wav(const struct wav_file* w)
 {
-	printf(	"channels: %d\n"
-		"sample rate: %dHz\n"
-		"bytes per sec: %d\n"
-		"bitdepth: %d\n"
-		"num samples: %d\n"
-		"size: %.1fkB\n",
-		w->num_channels,
-		w->sample_rate,
-		w->bytes_per_sec,
-		w->bit_depth,
-		w->num_samples,
-		((float) w->data_size) / 1000.0f);
+	printf(	
+			"***********************\n"
+			"Wav Info:\n"
+			"-----------------------\n"
+			"path: %s\n"
+			"channels: %d\n"
+			"sample rate: %dHz\n"
+			"bytes per sec: %d\n"
+			"bitdepth: %d\n"
+			"num samples: %d\n"
+			"size: %.1fkB\n"
+			"***********************\n",
+			w->path,
+			w->num_channels,
+			w->sample_rate,
+			w->bytes_per_sec,
+			w->bit_depth,
+			w->num_samples,
+			((float) w->data_size) / 1000.0f);
 }

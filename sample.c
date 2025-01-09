@@ -10,6 +10,8 @@ static void print_sample(const struct sample* s)
 {
 	printf(
 			"***********************\n"
+			"Sample Info:\n"
+			"-----------------------\n"
 			"Frame size: %dB\n"
 			"Sample Rate: %dHz\n"
 			"Num Frames: %d\n"
