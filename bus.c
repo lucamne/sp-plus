@@ -53,21 +53,21 @@ int set_pan(struct bus* b, float p)
 	return 0;
 }
 
-static float out[NUM_CHANNELS] = {0, 0};
+static double out[NUM_CHANNELS] = {0.0, 0.0};
 
 static void process_leaf_nodes(struct bus* b)
 {
 	// if bus input is a sample
 	struct sample* s = b->sample_in;
 	if (s && s->playing) {
-		float left = *s->next_frame;
-		float right = *(s->next_frame + 1);
+		double left = *s->next_frame;
+		double right = *(s->next_frame + 1);
 		// apply attenuation
-		left = (1.0f - b->atten) * left;
-		right = (1.0f - b->atten) * right;
+		left = (1.0 - b->atten) * left;
+		right = (1.0 - b->atten) * right;
 		// apply pan
-		left = left * fmin(1.0f - b->pan, 1.0f);
-		right = right * fmin(1.0f + b->pan, 1.0f);
+		left = left * fmin(1.0 - b->pan, 1.0);
+		right = right * fmin(1.0 + b->pan, 1.0);
 		out[0] += left;
 		out[1] += right;
 
@@ -96,14 +96,14 @@ int process_bus(struct bus* master, void* dest, int frames)
 		// alsa expects 16 bit int
 		int16_t int_out[NUM_CHANNELS];
 		// convert left
-		int f = out[0] * 32768.0f; 
-		if (f > 32767.0f) f = 32767.0f;
-		if (f < -32768.0f) f = -32768.0f;
+		double f = out[0] * 32768.0; 
+		if (f > 32767.0) f = 32767.0;
+		if (f < -32768.0) f = -32768.0;
 		int_out[0] = (int16_t) f;
 		// convert right
-		f = out[1] * 32768.0f; 
-		if (f > 32767.0f) f = 32767.0f;
-		if (f < -32768.0f) f = -32768.0f;
+		f = out[1] * 32768.0; 
+		if (f > 32767.0) f = 32767.0;
+		if (f < -32768.0) f = -32768.0;
 		int_out[1] = (int16_t) f;
 
 		memcpy((char *)dest + i * FRAME_SIZE, int_out, FRAME_SIZE);
