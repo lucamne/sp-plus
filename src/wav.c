@@ -4,6 +4,29 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+static void print_wav(const struct wav_file* w)
+{
+	printf(	
+			"***********************\n"
+			"Wav Info:\n"
+			"-----------------------\n"
+			"path: %s\n"
+			"channels: %d\n"
+			"sample rate: %dHz\n"
+			"bytes per sec: %d\n"
+			"bitdepth: %d\n"
+			"num samples: %d\n"
+			"size: %.1fkB\n"
+			"***********************\n",
+			w->path,
+			w->num_channels,
+			w->sample_rate,
+			w->bytes_per_sec,
+			w->bit_depth,
+			w->num_samples,
+			((float) w->data_size) / 1000.0f);
+}
+
 // log read error and free state ptrs
 static void wav_read_error(FILE* f, struct wav_file* w) 
 {
@@ -21,6 +44,7 @@ static bool is_little_endian(void)
 	return false;
 }
 
+// load a wav file from disk
 struct wav_file* load_wav(const char* path)
 {
 	if (!is_little_endian) {
@@ -109,25 +133,3 @@ struct wav_file* load_wav(const char* path)
 	return wav;
 }
 
-void print_wav(const struct wav_file* w)
-{
-	printf(	
-			"***********************\n"
-			"Wav Info:\n"
-			"-----------------------\n"
-			"path: %s\n"
-			"channels: %d\n"
-			"sample rate: %dHz\n"
-			"bytes per sec: %d\n"
-			"bitdepth: %d\n"
-			"num samples: %d\n"
-			"size: %.1fkB\n"
-			"***********************\n",
-			w->path,
-			w->num_channels,
-			w->sample_rate,
-			w->bytes_per_sec,
-			w->bit_depth,
-			w->num_samples,
-			((float) w->data_size) / 1000.0f);
-}

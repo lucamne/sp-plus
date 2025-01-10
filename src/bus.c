@@ -1,10 +1,11 @@
-#include "bus.h"
+#include "signal_chain.h"
 #include "defs.h"
 
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
 
+// create empty bus
 struct bus* init_bus(void)
 {
 	struct bus* b = malloc(sizeof(struct bus));
@@ -21,6 +22,7 @@ struct bus* init_bus(void)
 	return b;
 }
 
+// attach child to the input of parent
 int add_bus_in(struct bus* parent, struct bus* child)
 {
 	parent->bus_ins = realloc(
@@ -33,6 +35,7 @@ int add_bus_in(struct bus* parent, struct bus* child)
 	return 0;
 }
 
+// set bus attenuation
 int set_atten(struct bus* b, float a)
 {
 	b->atten = a;
@@ -43,6 +46,7 @@ int set_atten(struct bus* b, float a)
 	return 0;
 }
 
+// set bus pan 
 int set_pan(struct bus* b, float p)
 {
 	b->pan = p;
@@ -53,8 +57,10 @@ int set_pan(struct bus* b, float p)
 	return 0;
 }
 
+// updated by process_leaf_nodes and used by process bus
 static double out[NUM_CHANNELS] = {0.0, 0.0};
-
+// recurse from parent bus down to each input sample
+// grab next frame from each sample and run through processing
 static void process_leaf_nodes(struct bus* b)
 {
 	// if bus input is a sample
@@ -86,6 +92,8 @@ static void process_leaf_nodes(struct bus* b)
 		process_leaf_nodes(b->bus_ins[i]);
 }
 
+// Process the next n frames and copy result to dest
+// In practice this is used for the alsa callback function
 int process_bus(struct bus* master, void* dest, int frames)
 {
 	// process i frames

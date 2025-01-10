@@ -1,7 +1,6 @@
 #include "io.h"
 #include "defs.h"
-#include "sample.h"
-#include "bus.h"
+#include "signal_chain.h"
 
 #include <signal.h>
 #include <sys/time.h>

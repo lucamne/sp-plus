@@ -6,6 +6,7 @@
 static unsigned int period_time = 100000;	// period time in usec
 static unsigned int buffer_time = 500000;	// buffer time in usec
 
+// setup hardware parameters
 static int set_hwparams(struct alsa_dev* a_dev, snd_pcm_hw_params_t* params)
 {
 	snd_pcm_t* pcm = a_dev->pcm;
@@ -100,6 +101,7 @@ static int set_hwparams(struct alsa_dev* a_dev, snd_pcm_hw_params_t* params)
 	return 0;
 }
 
+// setup software parameters
 static int set_swparams(struct alsa_dev* a_dev, snd_pcm_sw_params_t* params)
 {
 	int err;
@@ -131,15 +133,6 @@ static int set_swparams(struct alsa_dev* a_dev, snd_pcm_sw_params_t* params)
 				snd_strerror(err));
 		return err;
 	}
-	/* enable period events when requested */
-	if (0) {
-		err = snd_pcm_sw_params_set_period_event(pcm, params, 1);
-		if (err < 0) {
-			printf("Unable to set period event: %s\n", 
-					snd_strerror(err));
-			return err;
-		}
-	}
 	/* write the parameters to the playback device */
 	err = snd_pcm_sw_params(pcm, params);
 	if (err < 0) {
@@ -150,6 +143,7 @@ static int set_swparams(struct alsa_dev* a_dev, snd_pcm_sw_params_t* params)
 	return 0;
 }
 
+// recover from underun and overflows
 static int xrun_recovery(snd_pcm_t* pcm, int err)
 {
 	/* under-run */
@@ -175,17 +169,22 @@ static int xrun_recovery(snd_pcm_t* pcm, int err)
 	return err;
 }
 
+// container to be passed to callback on receiving signal from pcm device
 struct async_private_data {
-	int frame_size;
 	snd_pcm_uframes_t period_size;
 	struct bus* master;
 };
 
+// executes on caught signal from pcm device
+// process requested frames from master bus and copy to pcm output buffer
 static void async_callback(snd_async_handler_t *ahandler)
 {
 	snd_pcm_t *handle = snd_async_handler_get_pcm(ahandler);
 	struct async_private_data *data = 
 		snd_async_handler_get_callback_private(ahandler);
+	const snd_pcm_uframes_t period_size = data->period_size;
+	struct bus* master = data->master;
+
 	const snd_pcm_channel_area_t *my_areas;
 	snd_pcm_uframes_t offset, frames, size;
 	snd_pcm_sframes_t avail, commitres;
@@ -222,7 +221,7 @@ static void async_callback(snd_async_handler_t *ahandler)
 			first = 1;
 			continue;
 		}
-		if (avail < (long int) data->period_size) {
+		if ((snd_pcm_uframes_t) avail < period_size) {
 			if (first) {
 				first = 0;
 				err = snd_pcm_start(handle);
@@ -237,7 +236,7 @@ static void async_callback(snd_async_handler_t *ahandler)
 			continue;
 		}
 
-		size = data->period_size;
+		size = period_size;
 		while (size > 0) {
 			frames = size;
 
@@ -251,7 +250,7 @@ static void async_callback(snd_async_handler_t *ahandler)
 				}
 				first = 1;
 			}
-			process_bus(	data->master,
+			process_bus(	master,
 					my_areas[0].addr + 
 					offset * my_areas[0].step / 8,
 					frames);
@@ -272,22 +271,21 @@ static void async_callback(snd_async_handler_t *ahandler)
 	}
 }
 
-// might need to add the unused params
-static int async_loop(
+// initialize async callback and prep pcm buffer with frames
+static int async_init(
 		snd_pcm_t* handle, 
 		struct bus* master,
-		int frame_size, 
 		snd_pcm_uframes_t period_size)
 {
 	// maybe need to free later
 	struct async_private_data* data = malloc(sizeof(struct async_private_data));
 	snd_async_handler_t *ahandler;
+
 	const snd_pcm_channel_area_t *my_areas;
 	snd_pcm_uframes_t offset, frames, size;
 	snd_pcm_sframes_t commitres;
 	int err, count;
 
-	data->frame_size = frame_size;
 	data->period_size = period_size;
 	data->master = master;
 
@@ -349,7 +347,8 @@ static int async_loop(
 	return 0;
 }
 
-struct alsa_dev* open_alsa_dev(int r, int num_c)
+// create open a pcm device and initialize parameters
+struct alsa_dev* open_alsa_dev(int rate, int num_c)
 {
 	int err;
 	struct alsa_dev* a_dev = malloc(sizeof(struct alsa_dev));
@@ -361,7 +360,7 @@ struct alsa_dev* open_alsa_dev(int r, int num_c)
 
 	a_dev->dev_id = "plughw:0,0";
 	a_dev->num_channels = num_c;
-	a_dev->rate = r;
+	a_dev->rate = rate;
 	// init pcm handle
 	err = snd_pcm_open(
 			&(a_dev->pcm), a_dev->dev_id, SND_PCM_STREAM_PLAYBACK, 0);
@@ -369,13 +368,13 @@ struct alsa_dev* open_alsa_dev(int r, int num_c)
 		printf("Error opening PCM device: %s\n", snd_strerror(err));
 		return 0;
 	}
-	// init hwparams
+
 	err = set_hwparams(a_dev, hwparams);
 	if (err < 0) {
 		printf("Setting of hwparams failed: %s\n", snd_strerror(err));
 		exit(EXIT_FAILURE);
 	}
-	// init swparams
+
 	err = set_swparams(a_dev, swparams);
 	if (err < 0) {
 		printf("Setting of swparams failed: %s\n", snd_strerror(err));
@@ -384,6 +383,8 @@ struct alsa_dev* open_alsa_dev(int r, int num_c)
 	return a_dev;
 }
 
+// to be called after alsa_open
+// starts async playback routine
 int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master)
 {
 	int err = snd_pcm_prepare(a_dev->pcm);
@@ -391,11 +392,7 @@ int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master)
 		printf("Failed to prepare pcm device\n");
 		return 1;
 	}
-	err = async_loop(
-			a_dev->pcm, 
-			master,
-			a_dev->num_channels * 2, 
-			a_dev->period_size);
+	err = async_init(a_dev->pcm, master, a_dev->period_size);
 
 	if (err < 0) {
 		printf("Playback failed: %s\n", snd_strerror(err));

@@ -1,7 +1,7 @@
 #include "defs.h"
-#include "sample.h"
+#include "signal_chain.h"
 #include "io.h"
-#include "smarc/smarc.h"
+#include "smarc.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -21,7 +21,7 @@ static void print_sample(const struct sample* s)
 			s->num_frames);
 }
 
-// returns new num of frames or -1 on error
+// change sample's sample rate from rate_in to rate_out
 static int resample(struct sample* s, int rate_in, int rate_out)
 {
 	double bandwidth = 0.95;  // bandwidth
@@ -74,6 +74,7 @@ static int resample(struct sample* s, int rate_in, int rate_out)
 	return w;
 }
 
+// create empty sample
 struct sample* init_sample(void)
 {
 	static int _id = 0;
@@ -81,13 +82,13 @@ struct sample* init_sample(void)
 	s->data = NULL;
 	s->frame_size = 0;
 	s->next_frame = NULL;
-	s->id  = _id++;
 	s->rate = 0;
 	s->playing = true;
 	s->loop = false;
 	return s;
 }
 
+// read wav file and load into existing sample
 int load_wav_into_sample(const char* path, struct sample* s)
 {
 	struct wav_file* w = load_wav(path);
@@ -121,15 +122,15 @@ int load_wav_into_sample(const char* path, struct sample* s)
 	// convert data from int to float for later dsp
 	for (int i = 0; i < s->num_frames; i++) {
 		// convert left channel
-		double f = ((double) w->data[2 * i]) / 32768.0;
+		double f = ((double) w->data[NUM_CHANNELS * i]) / 32768.0;
 		if (f > 1.0) f = 1.0;
 		else if (f < -1.0) f = -1.0;
-		s->data[2 * i] = f;
+		s->data[NUM_CHANNELS * i] = f;
 		// convert right channel
-		f = ((double) w->data[2 * i + 1]) / 32768.0;
+		f = ((double) w->data[NUM_CHANNELS * i + 1]) / 32768.0;
 		if (f > 1.0) f = 1.0;
 		else if (f < -1.0) f = -1.0;
-		s->data[2 * i + 1] = f;
+		s->data[NUM_CHANNELS * i + 1] = f;
 	}
 
 	if (s->rate != SAMPLE_RATE) {

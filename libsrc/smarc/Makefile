@@ -33,6 +33,7 @@ LDFLAGS := $(LDFLAGS) -lm -lsndfile
 LIBSRC = remez_lp.c smarc.c stage_impl.c filtering.c polyfilt.c multi_stage.c
 LIBOBJECTS = $(patsubst %.c,%.o,$(LIBSRC))
 LIBTARGET = libsmarc.so
+STATICLIB = ../../lib/libsmarc.a
 
 SRC = main.c
 TARGET = smarc
@@ -41,6 +42,7 @@ OBJECTS = $(patsubst %.c,%.o,$(SRC)) $(LIBOBJECTS)
 ARGTABLE_LIB_A := /usr/lib/libargtable2.a
 
 all: $(TARGET) $(LIBTARGET)
+
 
 $(TARGET): $(OBJECTS) 
 	gcc $(LDFLAGS) $(OBJECTS) $(ARGTABLE_LIB_A) -o $(TARGET)
@@ -52,7 +54,16 @@ $(LIBTARGET): $(LIBOBJECTS)
 %.o: %.c
 	echo "compiling $<"
 	gcc $(CFLAGS) -c $<
-	
+
+
+lib: $(STATICLIB)
+
+$(STATICLIB): $(LIBOBJECTS)
+	ar rcs $@ $^
+
+%.o: %.c
+	gcc -msse -msse2 -ffast-math -mfpmath=sse -Wall -c $<
+
 clean:
 	rm -f $(OBJECTS)
 
