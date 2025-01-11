@@ -79,26 +79,46 @@ struct sample* init_sample(void)
 {
 	static int _id = 0;
 	struct sample* s = malloc(sizeof(struct sample));
+	if (!s)
+		return NULL;
 	s->data = NULL;
 	s->frame_size = 0;
 	s->next_frame = NULL;
 	s->rate = 0;
-	s->playing = true;
+	s->playing = false;
 	s->loop = false;
 	return s;
 }
 
-// read wav file and load into existing sample
-int load_wav_into_sample(const char* path, struct sample* s)
+
+void free_sample(struct sample* s)
 {
+	if (s) {
+		if (s->data)
+			free(s->data);
+		if (s->next_frame)
+			free(s->next_frame);
+		free(s);
+	}
+}
+
+// read wav file and return a new sample
+struct sample* load_wav_into_sample(const char* path)
+{
+	struct sample* s = init_sample();
+	if (!s) return NULL;
+
 	struct wav_file* w = load_wav(path);
-	if (!w)
-		return 1;
+	if (!w) {
+		free_sample(s);
+		return NULL;
+	}
 	// only deal with mono and stereo files for now
 	if (w->num_channels != 2 && w->num_channels != 1) {
 		printf("%d channel(s) not supported\n", w->num_channels);
-		free(w);
-		return 1;
+		free_wav(w);
+		free_sample(s);
+		return NULL;
 	}
 	// double samples to convert to stereo
 	if (w->num_channels == 1) {
@@ -137,7 +157,9 @@ int load_wav_into_sample(const char* path, struct sample* s)
 		const int r = resample(s, s->rate, SAMPLE_RATE);
 		if (r == -1) {
 			fprintf(stderr, "Resampling Error\n");
-			return 1;
+			free_wav(w);
+			free_sample(s);
+			return NULL;
 		}
 		s->num_frames = r;
 		s->rate = SAMPLE_RATE;
@@ -145,11 +167,19 @@ int load_wav_into_sample(const char* path, struct sample* s)
 	// initiliaze here because data may have been reallocated
 	s->next_frame = s->data;
 
-	free(w);
+	free_wav(w);
 
 	print_sample(s);
 
-	return 0;
+	return s;
 }
 
 
+int trigger_sample(struct sample* s)
+{
+	s->next_frame = s->data;
+	if (s->loop && s->playing)
+		s->playing = false;
+	else
+		s->playing = true;
+}

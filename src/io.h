@@ -49,6 +49,7 @@ struct alsa_dev {
 // allocates wav_file struct, caller should free 
 // returns NULL on failure
 struct wav_file* load_wav(const char* path);
+void free_wav(struct wav_file* w);
 
 /**** ALSA: alsa.c ****/
 

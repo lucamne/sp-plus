@@ -37,26 +37,29 @@ struct bus {
 	bool solo;			// is this bus soloed
 };
 
-/**** Sample: sample.c ****/
+//------------------------------------------------------------------------------
+// Sample Contol Functions: sample.c
+// -----------------------------------------------------------------------------
 
 // returns empty sample or NULL on error
 struct sample* init_sample(void);
+void free_sample(struct sample* s);
+// loads wav from path and returns a new sample
+struct sample* load_wav_into_sample(const char* path);
 
-// return 0 iff successful
-int load_wav_into_sample(const char* path, struct sample* s);
+int trigger_sample(struct sample* s);
 
-/**** Bus: bus.c ****/
+//------------------------------------------------------------------------------
+// Bus Control Functions: bus.c
+// -----------------------------------------------------------------------------
 
 // returns empty bus or NULL on error
 struct bus* init_bus(void);
-
 // adds an input bus to parent, return 0 iff successful
 int add_bus_in(struct bus* parent, struct bus* child);
 
-// set atten between 0.0 and 1.0, return 0 iff successful
+// set playback settings
 int set_atten(struct bus* b, float a);
-
-// set pan between -1.0 and 1.0, return 0 iff successful
 int set_pan(struct bus* b, float p);
 
 // processes audio through bus and copies the output to destination

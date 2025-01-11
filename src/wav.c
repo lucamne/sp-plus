@@ -133,3 +133,10 @@ struct wav_file* load_wav(const char* path)
 	return wav;
 }
 
+void free_wav(struct wav_file* w)
+{
+	if (w) {
+		if (w->data) free(w->data);
+		free(w);
+	}
+}
