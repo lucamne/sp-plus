@@ -28,10 +28,9 @@ static void print_wav(const struct wav_file* w)
 }
 
 // log read error and free state ptrs
-static void wav_read_error(FILE* f, struct wav_file* w) 
+static void wav_read_error(FILE* f) 
 {
 	fprintf(stderr, "Error reading wav\n");
-	free(w);
 	fclose(f);
 }
 
@@ -45,58 +44,57 @@ static bool is_little_endian(void)
 }
 
 // load a wav file from disk
-struct wav_file* load_wav(const char* path)
+int load_wav(struct wav_file* wav, const char* path)
 {
 	if (!is_little_endian) {
 		fprintf(stderr, "Only little-endian systems are supported\n");
-		return NULL;
+		return 1;
 	}
 
+	wav->path = path;
 	FILE* f = fopen(path, "r");
 	if (!f) {
 		fprintf(stderr, "Could not open file: %s\n", path);
-		return NULL;
+		return 1;
 	}
 
-	struct wav_file* wav = malloc(sizeof(struct wav_file));
-	wav->path = path;
 	int32_t buffer[12];
 
 	// read RIFF, WAVE, and fmt headers assuming they exist
 	if (fread(buffer, sizeof(*buffer), 5, f) != 5) {
-		wav_read_error(f, wav);
-		return NULL;
+		wav_read_error(f);
+		return 1;
 	}
 	if (buffer[0] ^ 0x46464952) {		// check for 'RIFF' tag
-		wav_read_error(f, wav);
-		return NULL;
+		wav_read_error(f);
+		return 1;
 	}
 	/* Spec does not require WAVE tag here
 	 * For now I am checking to reduce scope */
 	if (buffer[2] ^ 0x45564157) {		// check for 'WAVE' tag
-		wav_read_error(f, wav);
-		return NULL;
+		wav_read_error(f);
+		return 1;
 	}
 	if (buffer[3] ^ 0x20746D66) {		// check for 'fmt ' tag
-		wav_read_error(f, wav);
-		return NULL;
+		wav_read_error(f);
+		return 1;
 	}
 	wav->fmt_ck_size = buffer[4];
 	// support  only non-extended PCM for now
 	if (wav->fmt_ck_size != 16) {
-		wav_read_error(f, wav);
-		return NULL;
+		wav_read_error(f);
+		return 1;
 	}
 
 	// read fmt chunk
 	if (fread(buffer, 1, wav->fmt_ck_size, f) != (size_t) wav->fmt_ck_size) {
-		wav_read_error(f, wav);
-		return NULL;
+		wav_read_error(f);
+		return 1;
 	}
 	wav->format = buffer[0] & 0xFFFF;		
 	if (wav->format != 1) {			// support only PCM for now
-		wav_read_error(f, wav);
-		return NULL;
+		wav_read_error(f);
+		return 1;
 	}
 	wav->num_channels = buffer[0] >> 16;	
 	wav->sample_rate = buffer[1];
@@ -108,35 +106,26 @@ struct wav_file* load_wav(const char* path)
 
 	// read data chunk assuming no other chunks come next (ie. fact)
 	if (fread(buffer, sizeof(*buffer), 2, f) != 2) {
-		wav_read_error(f, wav);
-		return NULL;
+		wav_read_error(f);
+		return 1;
 	}
 	if (buffer[0] ^ 0x61746164) { 		// check for 'data' tag
-		wav_read_error(f, wav);
-		return NULL;
+		wav_read_error(f);
+		return 1;
 	}
 	wav->data_size = buffer[1];
 	wav->num_samples = wav->data_size / wav->frame_size;
 	wav->data = malloc(wav->data_size);
 	if (!wav->data) {
-		wav_read_error(f, wav);
-		return NULL;
+		wav_read_error(f);
+		return 1;
 	}
 	if (fread(wav->data, 1, wav->data_size, f) != (size_t) wav->data_size) {
-		wav_read_error(f, wav);
-		return NULL;
+		wav_read_error(f);
+		return 1;
 	}
 	fclose(f);
 
 	print_wav(wav);
-
-	return wav;
-}
-
-void free_wav(struct wav_file* w)
-{
-	if (w) {
-		if (w->data) free(w->data);
-		free(w);
-	}
+	return 0;
 }

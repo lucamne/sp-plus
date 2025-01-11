@@ -86,43 +86,42 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	s->playing = false;
 	s->loop = false;
 
-	struct wav_file* w = load_wav(path);
-	if (!w) return 1;
+	struct wav_file w = {0};
+	if (load_wav(&w, path)) return 1;
 
 	// only deal with mono and stereo files for now
-	if (w->num_channels != 2 && w->num_channels != 1) {
-		printf("%d channel(s) not supported\n", w->num_channels);
-		free_wav(w);
+	if (w.num_channels != 2 && w.num_channels != 1) {
+		printf("%d channel(s) not supported\n", w.num_channels);
 		return 1;
 	}
 	// convert to stereo if necessary
-	if (w->num_channels == 1) {
-		int16_t* new_data = calloc(2, w->data_size);
-		for (int i = 0; i < w->num_samples; i++) {
-			new_data[2 * i] = w->data[i];
-			new_data[2 * i + 1] = w->data[i];
+	if (w.num_channels == 1) {
+		int16_t* new_data = calloc(2, w.data_size);
+		for (int i = 0; i < w.num_samples; i++) {
+			new_data[2 * i] = w.data[i];
+			new_data[2 * i + 1] = w.data[i];
 		}
-		free(w->data);
-		w->data = new_data;
-		w->data_size *= 2;
-		w->frame_size *= 2;
+		free(w.data);
+		w.data = new_data;
+		w.data_size *= 2;
+		w.frame_size *= 2;
 	}
 
-	s->num_frames = w->num_samples;
-	s->frame_size = w->frame_size;
-	s->rate = w->sample_rate;
+	s->num_frames = w.num_samples;
+	s->frame_size = w.frame_size;
+	s->rate = w.sample_rate;
 
 	// convert data from float to double
 	assert(sizeof(double) >= 2);
 	s->data = realloc(s->data, sizeof(double) * s->num_frames * NUM_CHANNELS);
 	for (int i = 0; i < s->num_frames; i++) {
 		// convert left channel
-		double f = ((double) w->data[NUM_CHANNELS * i]) / 32768.0;
+		double f = ((double) w.data[NUM_CHANNELS * i]) / 32768.0;
 		if (f > 1.0) f = 1.0;
 		else if (f < -1.0) f = -1.0;
 		s->data[NUM_CHANNELS * i] = f;
 		// convert right channel
-		f = ((double) w->data[NUM_CHANNELS * i + 1]) / 32768.0;
+		f = ((double) w.data[NUM_CHANNELS * i + 1]) / 32768.0;
 		if (f > 1.0) f = 1.0;
 		else if (f < -1.0) f = -1.0;
 		s->data[NUM_CHANNELS * i + 1] = f;
@@ -132,7 +131,6 @@ int load_wav_into_sample(struct sample* s, const char* path)
 		const int r = resample(s, s->rate, SAMPLE_RATE);
 		if (r == -1) {
 			fprintf(stderr, "Resampling Error\n");
-			free_wav(w);
 			return 1;
 		}
 		s->num_frames = r;
@@ -141,7 +139,6 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	// initiliaze here because data may have been reallocated
 	s->next_frame = s->data;
 
-	free_wav(w);
 	print_sample(s);
 	return 0;
 }

@@ -48,16 +48,15 @@ int main(int argc, char** argv)
 	add_bus_in(&master, &sb2);
 	add_bus_in(&master, &sb3);
 	add_bus_in(&master, &sb4);
-
-	struct alsa_dev* a_dev = 
-		open_alsa_dev(SAMPLE_RATE, NUM_CHANNELS);
-	if (!a_dev) {
+	
+	// create audio playback handle
+	struct alsa_dev a_dev = {0};
+	if (open_alsa_dev(&a_dev, SAMPLE_RATE, NUM_CHANNELS)) {
 		printf("Error opening audio device\n");
 		return 0;
 	}
-
-	int err = start_alsa_dev(a_dev, &master);
-	if (err) {
+	// start audio listening
+	if (start_alsa_dev(&a_dev, &master)) {
 		printf("Error starting audio\n");
 		return 0;
 	}

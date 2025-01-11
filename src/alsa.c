@@ -348,11 +348,17 @@ static int async_init(
 }
 
 // create open a pcm device and initialize parameters
-struct alsa_dev* open_alsa_dev(int rate, int num_c)
+int open_alsa_dev(struct alsa_dev* a_dev, int rate, int num_c)
 {
+	// zero alsa device
+	a_dev->pcm = NULL;
+	a_dev->dev_id = NULL;
+	a_dev->rate = 0;			
+	a_dev->num_channels = 0;
+	a_dev->buffer_size = 0U;
+	a_dev->period_size = 0U;
+	
 	int err;
-	struct alsa_dev* a_dev = malloc(sizeof(struct alsa_dev));
-
 	snd_pcm_hw_params_t* hwparams;
 	snd_pcm_sw_params_t* swparams;
 	snd_pcm_hw_params_alloca(&hwparams);
@@ -366,21 +372,21 @@ struct alsa_dev* open_alsa_dev(int rate, int num_c)
 			&(a_dev->pcm), a_dev->dev_id, SND_PCM_STREAM_PLAYBACK, 0);
 	if (err < 0) {
 		printf("Error opening PCM device: %s\n", snd_strerror(err));
-		return 0;
+		return 1;
 	}
 
 	err = set_hwparams(a_dev, hwparams);
 	if (err < 0) {
 		printf("Setting of hwparams failed: %s\n", snd_strerror(err));
-		exit(EXIT_FAILURE);
+		return 1;
 	}
 
 	err = set_swparams(a_dev, swparams);
 	if (err < 0) {
 		printf("Setting of swparams failed: %s\n", snd_strerror(err));
-		exit(EXIT_FAILURE);
+		return 1;
 	}
-	return a_dev;
+	return 0;
 }
 
 // to be called after alsa_open

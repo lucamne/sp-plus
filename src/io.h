@@ -46,16 +46,13 @@ struct alsa_dev {
 
 /**** Wav: wav.c ****/
 
-// allocates wav_file struct, caller should free 
-// returns NULL on failure
-struct wav_file* load_wav(const char* path);
-void free_wav(struct wav_file* w);
+// reads wav file into wav from path
+int load_wav(struct wav_file* wav, const char* path);
 
 /**** ALSA: alsa.c ****/
 
-// allocates alsa_dev struct, caller should free
-// returns NULL on failure
-struct alsa_dev* open_alsa_dev(int sample_rate, int num_channels);
+// opens and prepares alsa device handle for playback
+int open_alsa_dev(struct alsa_dev* a_dev, int rate, int num_c);
 
 // starts signal handler and callback which calls process_bus on master
 int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master);
