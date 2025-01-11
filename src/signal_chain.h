@@ -41,11 +41,9 @@ struct bus {
 // Sample Contol Functions: sample.c
 // -----------------------------------------------------------------------------
 
-// returns empty sample or NULL on error
-struct sample* init_sample(void);
-void free_sample(struct sample* s);
-// loads wav from path and returns a new sample
-struct sample* load_wav_into_sample(const char* path);
+// load wav into provided sample, return 0 iff success
+// NOTE: function not responsible for freeing any memory allocated by caller
+int load_wav_into_sample(struct sample* s, const char* path);
 
 int trigger_sample(struct sample* s);
 

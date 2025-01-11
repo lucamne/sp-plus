@@ -5,23 +5,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-// create empty bus
-struct bus* init_bus(void)
-{
-	struct bus* b = malloc(sizeof(struct bus));
-	if (!b)
-		return NULL;
-	b->sample_in = NULL;
-	b->bus_ins = NULL;
-	b->num_bus_ins = 0;
-	b->atten = 0.0f;
-	b->pan = 0.5f;
-	b->active = true;
-	b->solo = false;
-
-	return b;
-}
-
 // attach child to the input of parent
 int add_bus_in(struct bus* parent, struct bus* child)
 {

@@ -74,53 +74,28 @@ static int resample(struct sample* s, int rate_in, int rate_out)
 	return w;
 }
 
-// create empty sample
-struct sample* init_sample(void)
+// read wav file into provided sample
+int load_wav_into_sample(struct sample* s, const char* path)
 {
-	static int _id = 0;
-	struct sample* s = malloc(sizeof(struct sample));
-	if (!s)
-		return NULL;
+	// zero out sample
+	// watch for memory leak with data and next_frame
 	s->data = NULL;
-	s->frame_size = 0;
 	s->next_frame = NULL;
+	s->frame_size = 0;
 	s->rate = 0;
 	s->playing = false;
 	s->loop = false;
-	return s;
-}
-
-
-void free_sample(struct sample* s)
-{
-	if (s) {
-		if (s->data)
-			free(s->data);
-		if (s->next_frame)
-			free(s->next_frame);
-		free(s);
-	}
-}
-
-// read wav file and return a new sample
-struct sample* load_wav_into_sample(const char* path)
-{
-	struct sample* s = init_sample();
-	if (!s) return NULL;
 
 	struct wav_file* w = load_wav(path);
-	if (!w) {
-		free_sample(s);
-		return NULL;
-	}
+	if (!w) return 1;
+
 	// only deal with mono and stereo files for now
 	if (w->num_channels != 2 && w->num_channels != 1) {
 		printf("%d channel(s) not supported\n", w->num_channels);
 		free_wav(w);
-		free_sample(s);
-		return NULL;
+		return 1;
 	}
-	// double samples to convert to stereo
+	// convert to stereo if necessary
 	if (w->num_channels == 1) {
 		int16_t* new_data = calloc(2, w->data_size);
 		for (int i = 0; i < w->num_samples; i++) {
@@ -136,10 +111,10 @@ struct sample* load_wav_into_sample(const char* path)
 	s->num_frames = w->num_samples;
 	s->frame_size = w->frame_size;
 	s->rate = w->sample_rate;
-	// format sample data
+
+	// convert data from float to double
 	assert(sizeof(double) >= 2);
 	s->data = realloc(s->data, sizeof(double) * s->num_frames * NUM_CHANNELS);
-	// convert data from int to float for later dsp
 	for (int i = 0; i < s->num_frames; i++) {
 		// convert left channel
 		double f = ((double) w->data[NUM_CHANNELS * i]) / 32768.0;
@@ -152,14 +127,13 @@ struct sample* load_wav_into_sample(const char* path)
 		else if (f < -1.0) f = -1.0;
 		s->data[NUM_CHANNELS * i + 1] = f;
 	}
-
+	// resample if necessary
 	if (s->rate != SAMPLE_RATE) {
 		const int r = resample(s, s->rate, SAMPLE_RATE);
 		if (r == -1) {
 			fprintf(stderr, "Resampling Error\n");
 			free_wav(w);
-			free_sample(s);
-			return NULL;
+			return 1;
 		}
 		s->num_frames = r;
 		s->rate = SAMPLE_RATE;
@@ -168,10 +142,8 @@ struct sample* load_wav_into_sample(const char* path)
 	s->next_frame = s->data;
 
 	free_wav(w);
-
 	print_sample(s);
-
-	return s;
+	return 0;
 }
 
 

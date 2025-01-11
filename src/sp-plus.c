@@ -13,27 +13,41 @@
 int main(int argc, char** argv)
 {
 	// create banks
-	struct sample*** banks = malloc(sizeof(struct sample**));
-	banks[0] = calloc(NUM_PADS, sizeof(struct sample*));
+	struct sample** banks = malloc(sizeof(struct sample*));
+	banks[0] = calloc(NUM_PADS, sizeof(struct sample));
 	// load samples
-	banks[0][0] = load_wav_into_sample(WAV1);
-	banks[0][1] = load_wav_into_sample(WAV2);
-	banks[0][2] = load_wav_into_sample(WAV3);
-	banks[0][3] = load_wav_into_sample(WAV4);
-	// create busses and hookup to samples
-	struct bus* master = init_bus();
-	struct bus* sb1 = init_bus();
-	struct bus* sb2 = init_bus();
-	struct bus* sb3 = init_bus();
-	struct bus* sb4 = init_bus();
-	sb1->sample_in = banks[0][0];
-	sb2->sample_in = banks[0][1];
-	sb3->sample_in = banks[0][2];
-	sb4->sample_in = banks[0][3];
-	add_bus_in(master, sb1);
-	add_bus_in(master, sb2);
-	add_bus_in(master, sb3);
-	add_bus_in(master, sb4);
+	if (load_wav_into_sample(&banks[0][0], WAV1)) {
+		fprintf(stderr, "Error loading %s\n", WAV1);
+		return 0;
+	}
+	if (load_wav_into_sample(&banks[0][1], WAV2)) {
+		fprintf(stderr, "Error loading %s\n", WAV2);
+		return 0;
+	}
+	if (load_wav_into_sample(&banks[0][2], WAV3)) {
+		fprintf(stderr, "Error loading %s\n", WAV3);
+		return 0;
+	}
+	if (load_wav_into_sample(&banks[0][3], WAV4)) {
+		fprintf(stderr, "Error loading %s\n", WAV4);
+		return 0;
+	}
+	// create busses
+	struct bus master = {0};
+	struct bus sb1 = {0};
+	struct bus sb2 = {0};
+	struct bus sb3 = {0};
+	struct bus sb4 = {0};
+	// attach samples to input
+	sb1.sample_in = &banks[0][0];
+	sb2.sample_in = &banks[0][1];
+	sb3.sample_in = &banks[0][2];
+	sb4.sample_in = &banks[0][3];
+	// attach aux busses to master bus
+	add_bus_in(&master, &sb1);
+	add_bus_in(&master, &sb2);
+	add_bus_in(&master, &sb3);
+	add_bus_in(&master, &sb4);
 
 	struct alsa_dev* a_dev = 
 		open_alsa_dev(SAMPLE_RATE, NUM_CHANNELS);
@@ -42,7 +56,7 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	int err = start_alsa_dev(a_dev, master);
+	int err = start_alsa_dev(a_dev, &master);
 	if (err) {
 		printf("Error starting audio\n");
 		return 0;
@@ -61,13 +75,13 @@ int main(int argc, char** argv)
 		DrawText("Press q, w, e, r to play sample", 50, 200, 40, RED);
 
 		if (IsKeyPressed(KEY_Q))
-			trigger_sample(banks[0][0]);
+			trigger_sample(&banks[0][0]);
 		if (IsKeyPressed(KEY_W))
-			trigger_sample(banks[0][1]);
+			trigger_sample(&banks[0][1]);
 		if (IsKeyPressed(KEY_E))
-			trigger_sample(banks[0][2]);
+			trigger_sample(&banks[0][2]);
 		if (IsKeyPressed(KEY_R))
-			trigger_sample(banks[0][3]);
+			trigger_sample(&banks[0][3]);
 
 		EndDrawing();
 	}
