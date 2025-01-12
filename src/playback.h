@@ -18,6 +18,8 @@ struct sample {
 	int32_t num_frames;
 	int rate;		// sample_rate in Hz
 	// playback options
+	float atten; 		// attenuation, 0.0 none 1.0 is max
+	float pan; 		// stereo pan [-1.0 - 1.0]
 	bool playing;		// is sample currently playing
 	bool loop;		// is sample in loop mode
 };
@@ -26,7 +28,7 @@ struct sample {
 // Can have many bus inputs but only one sample input
 // In practice busses will only have one output
 struct bus {
-	struct sample* sample_in;	// sample input if any
+	struct sample* sample_in;	// sample inputs
 	struct bus** bus_ins;		// bus inputs
 	int num_bus_ins;
 

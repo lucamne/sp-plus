@@ -1,7 +1,7 @@
 #ifndef IO_H
 #define IO_H
 
-#include "signal_chain.h"
+#include "playback.h"
 
 #include <stdint.h>
 #include <alsa/asoundlib.h>

@@ -1,6 +1,6 @@
 #include "io.h"
 #include "defs.h"
-#include "signal_chain.h"
+#include "playback.h"
 #include "raylib.h"
 
 #define WAV1 "../test/drums/R-8ride1.wav"

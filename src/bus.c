@@ -1,4 +1,4 @@
-#include "signal_chain.h"
+#include "playback.h"
 #include "defs.h"
 
 #include <math.h>
@@ -40,26 +40,20 @@ int set_pan(struct bus* b, float p)
 	return 0;
 }
 
-// updated by process_leaf_nodes and used by process bus
-static double out[NUM_CHANNELS] = {0.0, 0.0};
-// recurse from parent bus down to each input sample
-// grab next frame from each sample and run through processing
-static void process_leaf_nodes(struct bus* b)
+/*
+ * Recurse from master bus down to samples. Get next frame data from samples
+ * apply bus dsp to output. Each bus will have an array of bus inputs or
+ * a single sample input.
+ */
+static double out[NUM_CHANNELS] = {0, 0};
+static void process_leaf_nodes(double out[], struct bus* b)
 {
-	// if bus input is a sample
+	// process sample input
 	struct sample* s = b->sample_in;
 	if (s && s->playing) {
-		double left = *s->next_frame;
-		double right = *(s->next_frame + 1);
-		// apply attenuation
-		left = (1.0 - b->atten) * left;
-		right = (1.0 - b->atten) * right;
-		// apply pan
-		left = left * fmin(1.0 - b->pan, 1.0);
-		right = right * fmin(1.0 + b->pan, 1.0);
-		out[0] += left;
-		out[1] += right;
-
+		// apply sample dsp
+		out[0] += *(s->next_frame);
+		out[1] += *(s->next_frame + 1);
 		// increment frame pointer or reset to beginning
 		if (s->next_frame + NUM_CHANNELS >= 
 				s->data + s->num_frames * NUM_CHANNELS) {
@@ -70,9 +64,15 @@ static void process_leaf_nodes(struct bus* b)
 		}
 		return;
 	}
-
+	// process bus inputs
 	for (int i = 0; i < b->num_bus_ins; i++)
-		process_leaf_nodes(b->bus_ins[i]);
+		process_leaf_nodes(out, b->bus_ins[i]);
+
+	// apply bus dsp
+	out[0] *= (1.0 - b->atten);
+	out[1] *= (1.0 - b->atten);
+	out[0] *= fmin(1.0 - b->pan, 1.0);
+	out[1] *= fmin(1.0 + b->pan, 1.0);
 }
 
 // Process the next n frames and copy result to dest
@@ -83,7 +83,7 @@ int process_bus(struct bus* master, void* dest, int frames)
 	for (int i = 0; i < frames; i++){
 		out[0] = 0;
 		out[1] = 0;
-		process_leaf_nodes(master);
+		process_leaf_nodes(out, master);
 		// alsa expects 16 bit int
 		int16_t int_out[NUM_CHANNELS];
 		// convert left

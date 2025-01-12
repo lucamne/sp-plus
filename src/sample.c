@@ -1,5 +1,5 @@
 #include "defs.h"
-#include "signal_chain.h"
+#include "playback.h"
 #include "io.h"
 #include "smarc.h"
 
@@ -80,9 +80,12 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	// zero out sample
 	// watch for memory leak with data and next_frame
 	s->data = NULL;
-	s->next_frame = NULL;
 	s->frame_size = 0;
+	s->next_frame = NULL;
+	s->num_frames = 0;
 	s->rate = 0;
+	s->atten = 0.0f;
+	s->pan = 0.0f;
 	s->playing = false;
 	s->loop = false;
 
