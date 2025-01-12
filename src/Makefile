@@ -1,10 +1,10 @@
 TARGET = ../sp-plus
-SRC := sp-plus.c wav.c alsa.c sample.c bus.c
+SRC := sp-plus.c wav.c alsa.c sample.c bus.c gui.c
 
-CFLAGS := -g
+CFLAGS := -g 
 # CFLAGS = -03
 
-CFLAGS := -I./external
+CFLAGS := $(CFLAGS) -I./external
 
 
 LINKFLAGS = -lm -lasound -L../lib -lsmarc -lraylib

@@ -55,9 +55,8 @@ static void process_leaf_nodes(double out[], struct bus* b)
 		out[0] += *(s->next_frame);
 		out[1] += *(s->next_frame + 1);
 		// increment frame pointer or reset to beginning
-		if (s->next_frame + NUM_CHANNELS >= 
-				s->data + s->num_frames * NUM_CHANNELS) {
-			s->next_frame = s->data;
+		if (s->next_frame + NUM_CHANNELS >= s->end_frame) {
+			s->next_frame = s->start_frame;
 			s->playing = s->loop ? true : false;
 		} else {
 			s->next_frame += NUM_CHANNELS;

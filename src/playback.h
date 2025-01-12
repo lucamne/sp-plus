@@ -13,11 +13,14 @@
 // the source of all playback is a sample
 struct sample {
 	double* data;		// 16_bit float data
-	int frame_size;		// size in bytes
+	double* start_frame;	// start playback on this frame
+	double* end_frame;	// once this frame is reached
 	double* next_frame;	// next frame to be played during playback
+
+	int frame_size;		// size in bytes
 	int32_t num_frames;
 	int rate;		// sample_rate in Hz
-	// playback options
+
 	float atten; 		// attenuation, 0.0 none 1.0 is max
 	float pan; 		// stereo pan [-1.0 - 1.0]
 	bool playing;		// is sample currently playing
@@ -46,8 +49,9 @@ struct bus {
 // load wav into provided sample, return 0 iff success
 // NOTE: function not responsible for freeing any memory allocated by caller
 int load_wav_into_sample(struct sample* s, const char* path);
-
 int trigger_sample(struct sample* s);
+int set_start(struct sample* s, int32_t frame);
+int set_end(struct sample* s, int32_t frame);
 
 //------------------------------------------------------------------------------
 // Bus Control Functions: bus.c
