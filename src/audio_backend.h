@@ -1,6 +1,7 @@
 #ifndef SIGNAL_CHAIN_H
 #define SIGNAL_CHAIN_H
 
+#include <alsa/asoundlib.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -42,6 +43,17 @@ struct bus {
 	bool solo;			// is this bus soloed
 };
 
+// handle to alsa device connection
+struct alsa_dev {
+	snd_pcm_t* pcm;			// pcm handle
+	char* dev_id;			// name of pcm device (plughw:i,j)
+	int rate;			// sample rate in Hz
+	int num_channels;		// number of channels
+	snd_pcm_uframes_t buffer_size;	// buffer size in frames
+	snd_pcm_uframes_t period_size;	// period size in frames
+	
+};
+
 //------------------------------------------------------------------------------
 // Sample Contol Functions: sample.c
 // -----------------------------------------------------------------------------
@@ -66,9 +78,13 @@ int add_bus_in(struct bus* parent, struct bus* child);
 int set_atten(struct bus* b, float a);
 int set_pan(struct bus* b, float p);
 
-// processes audio through bus and copies the output to destination
-// dest must be large enough to hold frames * frame_size
-// return 0 iff successful
-int process_bus(struct bus* master, void* dest, int frames);
+//------------------------------------------------------------------------------
+// Alsa Control Functions: alsa.c
+// -----------------------------------------------------------------------------
 
+// opens and prepares alsa device handle for playback
+int open_alsa_dev(struct alsa_dev* a_dev, int rate, int num_c);
+
+// starts signal handler and callback which calls process_bus on master
+int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master);
 #endif

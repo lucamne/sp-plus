@@ -1,10 +1,11 @@
-#include "io.h"
+#include "audio_backend.h"
 #include "defs.h"
 
 #include <stdlib.h>
+#include <math.h>
 
-static unsigned int period_time = 5000;		// period time in usec
-static unsigned int buffer_time = 10000;		// buffer time in usec
+static unsigned int period_time = 2500;		// period time in usec
+static unsigned int buffer_time = 5000;		// buffer time in usec
 
 // setup hardware parameters
 static int set_hwparams(struct alsa_dev* a_dev, snd_pcm_hw_params_t* params)
@@ -175,6 +176,67 @@ struct async_private_data {
 	struct bus* master;
 };
 
+/*
+ * Recurse from master bus down to samples. Get next frame data from samples
+ * apply bus dsp to output. Each bus will have an array of bus inputs or
+ * a single sample input.
+ */
+static void process_leaf_nodes(double out[], struct bus* b)
+{
+	// process sample input
+	struct sample* s = b->sample_in;
+	if (s && s->playing) {
+		// apply sample dsp
+		out[0] += *(s->next_frame);
+		out[1] += *(s->next_frame + 1);
+		// increment frame pointer or reset to beginning
+		if (s->next_frame + NUM_CHANNELS >= s->end_frame) {
+			s->next_frame = s->start_frame;
+			s->playing = s->loop ? true : false;
+		} else {
+			s->next_frame += NUM_CHANNELS;
+		}
+		return;
+	}
+	// process bus inputs
+	for (int i = 0; i < b->num_bus_ins; i++)
+		process_leaf_nodes(out, b->bus_ins[i]);
+
+	// apply bus dsp
+	out[0] *= (1.0 - b->atten);
+	out[1] *= (1.0 - b->atten);
+	out[0] *= fmin(1.0 - b->pan, 1.0);
+	out[1] *= fmin(1.0 + b->pan, 1.0);
+}
+
+// Process the next n frames and copy result to dest
+// In practice this is used for the alsa callback function
+static int copy_processed_frames(struct bus* master, void* dest, int frames)
+{
+	static double out[NUM_CHANNELS] = {0, 0};
+	// process i frames
+	for (int i = 0; i < frames; i++){
+		out[0] = 0;
+		out[1] = 0;
+		process_leaf_nodes(out, master);
+		// alsa expects 16 bit int
+		int16_t int_out[NUM_CHANNELS];
+		// convert left
+		double f = out[0] * 32768.0; 
+		if (f > 32767.0) f = 32767.0;
+		if (f < -32768.0) f = -32768.0;
+		int_out[0] = (int16_t) f;
+		// convert right
+		f = out[1] * 32768.0; 
+		if (f > 32767.0) f = 32767.0;
+		if (f < -32768.0) f = -32768.0;
+		int_out[1] = (int16_t) f;
+
+		memcpy((char *)dest + i * FRAME_SIZE, int_out, FRAME_SIZE);
+	}
+	return 0;
+}
+
 // executes on caught signal from pcm device
 // process requested frames from master bus and copy to pcm output buffer
 static void async_callback(snd_async_handler_t *ahandler)
@@ -250,7 +312,7 @@ static void async_callback(snd_async_handler_t *ahandler)
 				}
 				first = 1;
 			}
-			process_bus(	master,
+			copy_processed_frames(	master,
 					my_areas[0].addr + 
 					offset * my_areas[0].step / 8,
 					frames);
@@ -319,7 +381,7 @@ static int async_init(
 				}
 			}
 			// add data to bus
-			process_bus(	data->master, 
+			copy_processed_frames(	data->master, 
 					my_areas[0].addr + 
 					offset * my_areas[0].step / 8, 
 					frames);

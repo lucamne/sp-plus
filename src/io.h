@@ -1,14 +1,11 @@
 #ifndef IO_H
 #define IO_H
 
-#include "playback.h"
-
 #include <stdint.h>
-#include <alsa/asoundlib.h>
 #include <signal.h>
 
 /*
- * Handles file loading and interface with ALSA api
+ * Handles file wav file loading
  * Luca Negris - 01/2025
  */
 
@@ -33,28 +30,10 @@ struct wav_file {
 	int32_t num_samples;		// data_ck_size / block_size
 };
 
-// handle to alsa device connection
-struct alsa_dev {
-	snd_pcm_t* pcm;			// pcm handle
-	char* dev_id;			// name of pcm device (plughw:i,j)
-	int rate;			// sample rate in Hz
-	int num_channels;		// number of channels
-	snd_pcm_uframes_t buffer_size;	// buffer size in frames
-	snd_pcm_uframes_t period_size;	// period size in frames
-	
-};
 
 /**** Wav: wav.c ****/
 
 // reads wav file into wav from path
 int load_wav(struct wav_file* wav, const char* path);
-
-/**** ALSA: alsa.c ****/
-
-// opens and prepares alsa device handle for playback
-int open_alsa_dev(struct alsa_dev* a_dev, int rate, int num_c);
-
-// starts signal handler and callback which calls process_bus on master
-int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master);
 
 #endif

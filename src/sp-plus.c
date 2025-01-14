@@ -1,6 +1,6 @@
 #include "io.h"
 #include "defs.h"
-#include "playback.h"
+#include "audio_backend.h"
 #include "gui.h"
 #include "raylib.h"
 
@@ -48,53 +48,68 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	// draw window
+	// init window
 	const int screen_width = 800;
 	const int screen_height = 450;
-	const Vector2 sample_origin = {15.0f, 225.0f};
 
 	InitWindow(screen_width, screen_height, "My first window!!!");
 	SetTargetFPS(30);
-	struct sample* active_sample = NULL;
+	// init view data
+	struct sample_view_params sample_params = {
+		NULL,
+		WHITE,
+		{15.0f, 225.0f},
+		2.0f,
+		400.0f,
+		770.0f,
+		4000,
+		1.0f,
+		START };
+
+	const Vector2 sample_origin = {15.0f, 225.0f};
 
 	while(!WindowShouldClose()) {
 		// update
 		if (IsKeyPressed(KEY_Q)) {
-			active_sample = &banks[0][0];
+			sample_params.sample = &banks[0][0];
 			trigger_sample(&banks[0][0]);
 		}
 		if (IsKeyPressed(KEY_W)) {
-			active_sample = &banks[0][1];
+			sample_params.sample = &banks[0][1];
 			trigger_sample(&banks[0][1]);
 		}
 		if (IsKeyDown(KEY_U)) {
 			const int32_t f = 
-				(active_sample->start_frame - active_sample->data) 
+				(sample_params.sample->start_frame - 
+				 sample_params.sample->data) 
 				/ 2;
-			set_start(active_sample, f - 1000);
+			set_start(sample_params.sample, f - 1000);
 		}
 		if (IsKeyDown(KEY_I)) {
 			const int32_t f = 
-				(active_sample->start_frame - active_sample->data) 
+				(sample_params.sample->start_frame - 
+				 sample_params.sample->data) 
 				/ 2;
-			set_start(active_sample, f + 1000);
+			set_start(sample_params.sample, f + 1000);
 		}
 		if (IsKeyDown(KEY_J)) {
 			const int32_t f = 
-				(active_sample->end_frame - active_sample->data) 
+				(sample_params.sample->end_frame - 
+				 sample_params.sample->data) 
 				/ 2;
-			set_end(active_sample, f - 1000);
+			set_end(sample_params.sample, f - 1000);
 		}
 		if (IsKeyDown(KEY_K)) {
 			const int32_t f = 
-				(active_sample->end_frame - active_sample->data) 
+				(sample_params.sample->end_frame - 
+				 sample_params.sample->data) 
 				/ 2;
-			set_end(active_sample, f + 1000);
+			set_end(sample_params.sample, f + 1000);
 		}
 		// draw
 		BeginDrawing();
 		ClearBackground(BLACK);
-		draw_sample_view(active_sample, &sample_origin, 770.0f, 400.0f);
+		draw_sample_view(&sample_params);
 		EndDrawing();
 	}
 	CloseWindow();
