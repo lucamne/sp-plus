@@ -4,6 +4,7 @@
 #include "audio_backend.h"
 #include "raylib.h"
 
+
 typedef enum { PLAY, START, END } marker;
 
 struct sample_view_params {
@@ -19,7 +20,10 @@ struct sample_view_params {
 	marker zoom_focus;		// marker to focus on when zooming
 };
 
+void draw(const struct sample_view_params* sp);
+
 void draw_sample_view(const struct sample_view_params* params);
 //void draw_sample_view(struct sample* s, const Vector2* origin, float width, float height);
+
 
 #endif

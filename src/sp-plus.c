@@ -1,5 +1,5 @@
-#include "io.h"
 #include "defs.h"
+#include "io.h"
 #include "audio_backend.h"
 #include "gui.h"
 #include "raylib.h"
@@ -8,54 +8,61 @@
 #define WAV2 "../test/drums/R-8can1.wav"
 #define WAV3 "../test/drums/R-8solid k.wav"
 #define WAV4 "../test/drums/R-8dry clap.wav"
-#define NUM_PADS 8
 
+// holds core data structures of system
+struct system {
+	struct bus master;		// master bus, passed to audio callback
+	// struct bus* aux_busses;		// non master busses
+	// int num_aux_busses;
+	struct sample** banks;	// all loaded samples [BANK][PAD]
+	int num_banks;
+	struct alsa_dev playback_dev;	// alsa playback device
+};
+
+void run(struct system* sys, struct sample_view_params* sp);
 
 int main(int argc, char** argv)
 {
-	// create banks
-	struct sample** banks = malloc(sizeof(struct sample*));
-	banks[0] = calloc(NUM_PADS, sizeof(struct sample));
+	// init system
+	struct system sys = {0};
+	struct bus master = {0};
+	sys.master = master;
+	sys.banks = malloc(sizeof(struct sample*));
+	sys.banks[0] = calloc(NUM_PADS, sizeof(struct sample));
+	sys.num_banks = 1;
 	// load samples
-	if (load_wav_into_sample(&banks[0][0], WAV1)) {
+	if (load_wav_into_sample(&sys.banks[0][0], WAV1)) {
 		fprintf(stderr, "Error loading %s\n", WAV1);
 		return 0;
 	}
-	if (load_wav_into_sample(&banks[0][1], WAV2)) {
+	if (load_wav_into_sample(&sys.banks[0][1], WAV2)) {
 		fprintf(stderr, "Error loading %s\n", WAV2);
 		return 0;
 	}
-	// create busses
-	struct bus master = {0};
+	// create some aux busses
 	struct bus sb1 = {0};
 	struct bus sb2 = {0};
 	// attach samples to input
-	sb1.sample_in = &banks[0][0];
-	sb2.sample_in = &banks[0][1];
+	sb1.sample_in = &sys.banks[0][0];
+	sb2.sample_in = &sys.banks[0][1];
 	// attach aux busses to master bus
-	add_bus_in(&master, &sb1);
-	add_bus_in(&master, &sb2);
+	add_bus_in(&sys.master, &sb1);
+	add_bus_in(&sys.master, &sb2);
 	
-	// create audio playback handle
-	struct alsa_dev a_dev = {0};
-	if (open_alsa_dev(&a_dev, SAMPLE_RATE, NUM_CHANNELS)) {
+	// init audio_playback
+	if (open_alsa_dev(&sys.playback_dev, SAMPLE_RATE, NUM_CHANNELS)) {
 		printf("Error opening audio device\n");
 		return 0;
 	}
-	// start audio listening
-	if (start_alsa_dev(&a_dev, &master)) {
+	if (start_alsa_dev(&sys.playback_dev, &sys.master)) {
 		printf("Error starting audio\n");
 		return 0;
 	}
 
-	// init window
-	const int screen_width = 800;
-	const int screen_height = 450;
-
-	InitWindow(screen_width, screen_height, "My first window!!!");
+	// init gui
+	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_NAME); 
 	SetTargetFPS(30);
-	// init view data
-	struct sample_view_params sample_params = {
+	struct sample_view_params sp = {
 		NULL,
 		WHITE,
 		{15.0f, 225.0f},
@@ -66,52 +73,56 @@ int main(int argc, char** argv)
 		1.0f,
 		START };
 
-	const Vector2 sample_origin = {15.0f, 225.0f};
+	run(&sys, &sp);
 
+	return 0;
+}
+
+
+void run(struct system* sys, struct sample_view_params* sp)
+{	
+	struct sample** banks = sys->banks;
+	
 	while(!WindowShouldClose()) {
 		// update
 		if (IsKeyPressed(KEY_Q)) {
-			sample_params.sample = &banks[0][0];
+			sp->sample = &banks[0][0];
 			trigger_sample(&banks[0][0]);
 		}
 		if (IsKeyPressed(KEY_W)) {
-			sample_params.sample = &banks[0][1];
+			sp->sample = &banks[0][1];
 			trigger_sample(&banks[0][1]);
 		}
 		if (IsKeyDown(KEY_U)) {
 			const int32_t f = 
-				(sample_params.sample->start_frame - 
-				 sample_params.sample->data) 
+				(sp->sample->start_frame - 
+				 sp->sample->data) 
 				/ 2;
-			set_start(sample_params.sample, f - 1000);
+			set_start(sp->sample, f - 1000);
 		}
 		if (IsKeyDown(KEY_I)) {
 			const int32_t f = 
-				(sample_params.sample->start_frame - 
-				 sample_params.sample->data) 
+				(sp->sample->start_frame - 
+				 sp->sample->data) 
 				/ 2;
-			set_start(sample_params.sample, f + 1000);
+			set_start(sp->sample, f + 1000);
 		}
 		if (IsKeyDown(KEY_J)) {
 			const int32_t f = 
-				(sample_params.sample->end_frame - 
-				 sample_params.sample->data) 
+				(sp->sample->end_frame - 
+				 sp->sample->data) 
 				/ 2;
-			set_end(sample_params.sample, f - 1000);
+			set_end(sp->sample, f - 1000);
 		}
 		if (IsKeyDown(KEY_K)) {
 			const int32_t f = 
-				(sample_params.sample->end_frame - 
-				 sample_params.sample->data) 
+				(sp->sample->end_frame - 
+				 sp->sample->data) 
 				/ 2;
-			set_end(sample_params.sample, f + 1000);
+			set_end(sp->sample, f + 1000);
 		}
 		// draw
-		BeginDrawing();
-		ClearBackground(BLACK);
-		draw_sample_view(&sample_params);
-		EndDrawing();
+		draw(sp);
 	}
 	CloseWindow();
-	return 0;
 }
