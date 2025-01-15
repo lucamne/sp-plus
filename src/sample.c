@@ -1,6 +1,6 @@
 #include "defs.h"
 #include "audio_backend.h"
-#include "io.h"
+#include "file_io.h"
 #include "smarc.h"
 
 #include <stdlib.h>
@@ -187,4 +187,14 @@ int set_end(struct sample* s, int32_t frame)
 	else
 		s->end_frame = s->data + frame * NUM_CHANNELS;
 	return 0;
+}
+
+int32_t get_start(const struct sample* s)
+{
+	return (s->start_frame - s->data) / 2;
+}
+
+int32_t get_end(const struct sample* s)
+{
+	return (s->end_frame - s->data) / 2;
 }

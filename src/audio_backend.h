@@ -1,6 +1,9 @@
 #ifndef SIGNAL_CHAIN_H
 #define SIGNAL_CHAIN_H
 
+#include "audio_backend.h"
+#include "raylib.h"
+
 #include <alsa/asoundlib.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -62,8 +65,14 @@ struct alsa_dev {
 // NOTE: function not responsible for freeing any memory allocated by caller
 int load_wav_into_sample(struct sample* s, const char* path);
 int trigger_sample(struct sample* s);
+// set start frame
 int set_start(struct sample* s, int32_t frame);
+// set end_frame
 int set_end(struct sample* s, int32_t frame);
+// get start frame
+int32_t get_start(const struct sample* s);
+// get end frame
+int32_t get_end(const struct sample* s);
 
 //------------------------------------------------------------------------------
 // Bus Control Functions: bus.c
