@@ -22,6 +22,7 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 	const int32_t frames_to_draw = s->num_frames / sampler->zoom;
 	const int32_t focused_frame = sampler->zoom_focus == END ? 
 		s->end_frame : s->start_frame;
+
 	int32_t first_frame_to_draw;
 	if (focused_frame < frames_to_draw / 2)
 		first_frame_to_draw = 0;
@@ -31,10 +32,9 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 	else
 		first_frame_to_draw = focused_frame - frames_to_draw / 2;
 
-	// only some frames will be drawn
+	// not all frames will be rendered at once
 	int num_vertices;
 	float frame_freq;
-	// calculate num points and frame_freq
 	if (frames_to_draw > MAX_POINTS) { 
 		num_vertices = MAX_POINTS;
 		frame_freq = (float) frames_to_draw / (float) MAX_POINTS;
@@ -46,7 +46,6 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 	Vector2 vertices[num_vertices];
 	const float vertex_spacing = WAVE_WIDTH / (float) (num_vertices);
 	for (int i = 0; i < num_vertices; i++) {
-		// caluclate waveform points
 		const int32_t frame = first_frame_to_draw + i * (int) frame_freq;
 		const double sum = 
 			(s->data[frame * NUM_CHANNELS] + 
