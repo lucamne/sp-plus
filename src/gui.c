@@ -17,21 +17,30 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 		return;
 
 	const struct sample* s = sampler->active_sample;
-	int num_points;
+
+	const int frames_to_draw = (int) (s->num_frames / sampler->zoom);
+	if (frames_to_draw < MAX_POINTS) frames_to_draw = MAX_POINTS;
+
+	int first_frame_to_draw;
+	if (sampler->zoom_focus == END) {
+		if (get_end(s) < frames_to_draw / 2)
+	}
+
+	int num_vertices;
 	float frame_freq;
 	// calculate num points and frame_freq
-	if (s->num_frames > MAX_POINTS) { 
-		num_points = MAX_POINTS;
-		frame_freq = (float) s->num_frames / (float) MAX_POINTS;
+	if (frames_to_draw > MAX_POINTS) { 
+		num_vertices = MAX_POINTS;
+		frame_freq = (float) frames_to_draw / (float) MAX_POINTS;
 	} else {
-		num_points = s->num_frames;
+		num_vertices = frames_to_draw;
 		frame_freq = 1.0f;
 	}
 
 
-	Vector2 points[num_points];
-	const float sample_width = WAVE_WIDTH / (float) (num_points);
-	for (int i = 0; i < num_points; i++) {
+	Vector2 vertices[num_vertices];
+	const float vertex_spacing = WAVE_WIDTH / (float) (num_vertices);
+	for (int i = 0; i < num_vertices; i++) {
 		// caluclate waveform points
 		const int32_t frame = i * (int) frame_freq;
 		const double sum = 
@@ -39,12 +48,12 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 			 s->data[frame * NUM_CHANNELS + 1]) / 2.0;
 		const float y = 
 			(float) sum * (WAVE_HEIGHT / 2.0f) + ORIGIN.y;
-		const float x = (float) i * sample_width + ORIGIN.x;
+		const float x = (float) i * vertex_spacing + ORIGIN.x;
 		const Vector2 v = {x, y};
-		points[i] = v;
+		vertices[i] = v;
 	}
 	// draw waveform
-	DrawSplineLinear(points, num_points, THICKNESS, WAVE_COLOR);
+	DrawSplineLinear(vertices, num_vertices, THICKNESS, WAVE_COLOR);
 
 	/* Draw Markers */
 	
@@ -75,7 +84,6 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 	endv.x = end_x;
 	endv.y = ORIGIN.y + WAVE_HEIGHT / 2.0f;
 	DrawLineV(startv, endv, BLUE);
-
 }
 
 void draw(const struct system* sys, const struct sampler* sampler)
