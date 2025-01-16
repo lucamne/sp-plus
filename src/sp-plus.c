@@ -108,6 +108,13 @@ void run(struct system* sys, struct sampler* sampler)
 				}
 			}
 		}
+		if (IsKeyPressed(KEY_EQUAL)) {
+			sampler->zoom *= 2.0f;
+		}
+		if (IsKeyPressed(KEY_MINUS)) {
+			sampler->zoom /= 2.0f;
+			if (sampler->zoom < 1.0f) sampler->zoom = 1.0f;
+		}
 		// draw
 		draw(sys, sampler);
 	}

@@ -18,15 +18,20 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 
 	const struct sample* s = sampler->active_sample;
 
-	int frames_to_draw = (int) (s->num_frames / sampler->zoom);
-	if (frames_to_draw < MAX_POINTS) frames_to_draw = MAX_POINTS;
-
+	// calculate zoom parameters
+	const int frames_to_draw = (int) (s->num_frames / sampler->zoom);
+	const int focused_frame = sampler->zoom_focus == END ? 
+		s->end_frame : s->start_frame;
 	int first_frame_to_draw;
-	if (sampler->zoom_focus == END) {
-		//if (get_end(s) < frames_to_draw / 2)
-			;
-	}
+	if (focused_frame < frames_to_draw / 2)
+		first_frame_to_draw = 0;
+	else if (	s->num_frames - focused_frame <= 
+			frames_to_draw - (frames_to_draw / 2))
+		first_frame_to_draw = s->num_frames - frames_to_draw;
+	else
+		first_frame_to_draw = focused_frame - frames_to_draw / 2;
 
+	// only some frames will be drawn
 	int num_vertices;
 	float frame_freq;
 	// calculate num points and frame_freq
@@ -38,12 +43,11 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 		frame_freq = 1.0f;
 	}
 
-
 	Vector2 vertices[num_vertices];
 	const float vertex_spacing = WAVE_WIDTH / (float) (num_vertices);
 	for (int i = 0; i < num_vertices; i++) {
 		// caluclate waveform points
-		const int32_t frame = i * (int) frame_freq;
+		const int32_t frame = first_frame_to_draw + i * (int) frame_freq;
 		const double sum = 
 			(s->data[frame * NUM_CHANNELS] + 
 			 s->data[frame * NUM_CHANNELS + 1]) / 2.0;
@@ -53,41 +57,46 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 		const Vector2 v = {x, y};
 		vertices[i] = v;
 	}
-	// draw waveform
 	DrawSplineLinear(vertices, num_vertices, THICKNESS, WAVE_COLOR);
 
 	/* Draw Markers */
-	
-	// find marker x coordinates
-	const float play_x = 
-		((int) s->next_frame / frame_freq) * vertex_spacing + ORIGIN.x;
-	float start_x = 
-		((int) s->start_frame / frame_freq) * vertex_spacing + ORIGIN.x;
-	float end_x = 
-		((int) s->end_frame / frame_freq) * vertex_spacing + ORIGIN.x;
-	// draw playhead, start and end lines
-	Vector2 startv = {play_x, ORIGIN.y - WAVE_HEIGHT / 2.0f};
-	Vector2 endv = {play_x, ORIGIN.y + WAVE_HEIGHT / 2.0f};
-	DrawLineV(startv, endv, RED);
+	if (	s->next_frame >= first_frame_to_draw && 
+		s->next_frame < first_frame_to_draw + frames_to_draw) {
 
-	startv.x = start_x;
-	startv.y = ORIGIN.y - WAVE_HEIGHT / 2.0f;
-	endv.x = start_x;
-	endv.y = ORIGIN.y + WAVE_HEIGHT / 2.0f;
-	DrawLineV(startv, endv, BLUE);
+		const float play_x = 
+			((int) (s->next_frame - first_frame_to_draw) / frame_freq) * 
+			vertex_spacing + ORIGIN.x;
+		const Vector2 startv = {play_x, ORIGIN.y - WAVE_HEIGHT / 2.0f};
+		const Vector2 endv = {play_x, ORIGIN.y + WAVE_HEIGHT / 2.0f};
+		DrawLineV(startv, endv, RED);
+	}
+	if (	s->start_frame >= first_frame_to_draw && 
+		s->start_frame < first_frame_to_draw + frames_to_draw) {
 
-	startv.x = end_x;
-	startv.y = ORIGIN.y - WAVE_HEIGHT / 2.0f;
-	endv.x = end_x;
-	endv.y = ORIGIN.y + WAVE_HEIGHT / 2.0f;
-	DrawLineV(startv, endv, BLUE);
+		const float start_x = 
+			((int) (s->start_frame - first_frame_to_draw) / frame_freq) * 
+			vertex_spacing + ORIGIN.x;
+		const Vector2 startv = {start_x, ORIGIN.y - WAVE_HEIGHT / 2.0f};
+		const Vector2 endv = {start_x, ORIGIN.y + WAVE_HEIGHT / 2.0f};
+		DrawLineV(startv, endv, BLUE);
+	}
+	if (	s->end_frame >= first_frame_to_draw && 
+		s->end_frame <= first_frame_to_draw + frames_to_draw) {
+
+		const float end_x = 
+			((int) (s->end_frame - first_frame_to_draw) / frame_freq) * 
+			vertex_spacing + ORIGIN.x;
+		const Vector2 startv = {end_x, ORIGIN.y - WAVE_HEIGHT / 2.0f};
+		const Vector2 endv = {end_x, ORIGIN.y + WAVE_HEIGHT / 2.0f};
+		DrawLineV(startv, endv, BLUE);
+	}
 }
 
 void draw(const struct system* sys, const struct sampler* sampler)
 {
-		BeginDrawing();
-		ClearBackground(BLACK);
-		draw_sample_view(sys, sampler);
-		EndDrawing();
+	BeginDrawing();
+	ClearBackground(BLACK);
+	draw_sample_view(sys, sampler);
+	EndDrawing();
 }
 
