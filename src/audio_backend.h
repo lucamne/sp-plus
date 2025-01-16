@@ -17,9 +17,9 @@
 // the source of all playback is a sample
 struct sample {
 	double* data;		// 16_bit float data
-	double* start_frame;	// start playback on this frame
-	double* end_frame;	// once this frame is reached
-	double* next_frame;	// next frame to be played during playback
+	int32_t start_frame;	// start playback on this frame
+	int32_t end_frame;	// end when this frame is reached 
+	int32_t next_frame;	// next frame to be played during playback
 
 	int frame_size;		// size in bytes
 	int32_t num_frames;
@@ -69,10 +69,6 @@ int trigger_sample(struct sample* s);
 int set_start(struct sample* s, int32_t frame);
 // set end_frame
 int set_end(struct sample* s, int32_t frame);
-// get start frame
-int32_t get_start(const struct sample* s);
-// get end frame
-int32_t get_end(const struct sample* s);
 
 //------------------------------------------------------------------------------
 // Bus Control Functions: bus.c

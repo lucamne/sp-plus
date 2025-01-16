@@ -18,12 +18,13 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 
 	const struct sample* s = sampler->active_sample;
 
-	const int frames_to_draw = (int) (s->num_frames / sampler->zoom);
+	int frames_to_draw = (int) (s->num_frames / sampler->zoom);
 	if (frames_to_draw < MAX_POINTS) frames_to_draw = MAX_POINTS;
 
 	int first_frame_to_draw;
 	if (sampler->zoom_focus == END) {
-		if (get_end(s) < frames_to_draw / 2)
+		//if (get_end(s) < frames_to_draw / 2)
+			;
 	}
 
 	int num_vertices;
@@ -57,17 +58,13 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 
 	/* Draw Markers */
 	
-	// find marker frames
-	const int32_t start_frame = (s->start_frame - s->data) / NUM_CHANNELS;
-	const int32_t end_frame = (s->end_frame - s->data) / NUM_CHANNELS;
-	const int32_t play_frame = (s->next_frame - s->data) / NUM_CHANNELS;
 	// find marker x coordinates
 	const float play_x = 
-		((int) play_frame / frame_freq) * sample_width + ORIGIN.x;
+		((int) s->next_frame / frame_freq) * vertex_spacing + ORIGIN.x;
 	float start_x = 
-		((int) start_frame / frame_freq) * sample_width + ORIGIN.x;
+		((int) s->start_frame / frame_freq) * vertex_spacing + ORIGIN.x;
 	float end_x = 
-		((int) end_frame / frame_freq) * sample_width + ORIGIN.x;
+		((int) s->end_frame / frame_freq) * vertex_spacing + ORIGIN.x;
 	// draw playhead, start and end lines
 	Vector2 startv = {play_x, ORIGIN.y - WAVE_HEIGHT / 2.0f};
 	Vector2 endv = {play_x, ORIGIN.y + WAVE_HEIGHT / 2.0f};

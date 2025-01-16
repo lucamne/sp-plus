@@ -187,14 +187,14 @@ static void process_leaf_nodes(double out[], struct bus* b)
 	struct sample* s = b->sample_in;
 	if (s && s->playing) {
 		// apply sample dsp
-		out[0] += *(s->next_frame);
-		out[1] += *(s->next_frame + 1);
+		out[0] += s->data[s->next_frame * NUM_CHANNELS];
+		out[1] += s->data[s->next_frame * NUM_CHANNELS + 1];
 		// increment frame pointer or reset to beginning
-		if (s->next_frame + NUM_CHANNELS >= s->end_frame) {
+		if (s->next_frame + 1 >= s->end_frame) {
 			s->next_frame = s->start_frame;
 			s->playing = s->loop ? true : false;
 		} else {
-			s->next_frame += NUM_CHANNELS;
+			s->next_frame++;
 		}
 		return;
 	}

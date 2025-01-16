@@ -80,10 +80,10 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	// zero out sample
 	// watch for memory leak with data and next_frame
 	s->data = NULL;
-	s->start_frame = NULL;
-	s->end_frame = NULL;
+	s->start_frame = 0;
+	s->end_frame = 0;
 	s->frame_size = 0;
-	s->next_frame = NULL;
+	s->next_frame = 0;
 	s->num_frames = 0;
 	s->rate = 0;
 	s->atten = 0.0f;
@@ -142,9 +142,9 @@ int load_wav_into_sample(struct sample* s, const char* path)
 		s->rate = SAMPLE_RATE;
 	}
 	// initiliaze here because data may have been reallocated
-	s->next_frame = s->data;
-	s->start_frame = s->data;
-	s->end_frame = s->data + s->num_frames * NUM_CHANNELS;
+	s->next_frame = 0;
+	s->start_frame = 0;
+	s->end_frame = s->num_frames;
 
 	print_sample(s);
 	return 0;
@@ -165,11 +165,11 @@ int set_start(struct sample* s, int32_t frame)
 	if (!s) return 1;
 
 	if (frame < 0)
-		s->start_frame = s->data;
-	else if (s->data + frame * NUM_CHANNELS >= s->end_frame) 
-		s->start_frame = s->end_frame - NUM_CHANNELS;
+		s->start_frame = 0;
+	else if (frame >= s->end_frame) 
+		s->start_frame = s->end_frame - 1;
 	else 
-		s->start_frame = s->data + frame * NUM_CHANNELS;
+		s->start_frame = frame;
 
 	if (!s->playing)
 		s->next_frame = s->start_frame;
@@ -181,20 +181,10 @@ int set_end(struct sample* s, int32_t frame)
 	if (!s) return 1;
 
 	if (frame > s->num_frames)
-		s->end_frame = s->data + s->num_frames * NUM_CHANNELS;
-	else if (s->data + frame * NUM_CHANNELS <= s->start_frame)
-		s->end_frame = s->start_frame + NUM_CHANNELS;
+		s->end_frame = s->num_frames;
+	else if (frame <= s->start_frame)
+		s->end_frame = s->start_frame + 1;
 	else
-		s->end_frame = s->data + frame * NUM_CHANNELS;
+		s->end_frame = frame;
 	return 0;
-}
-
-int32_t get_start(const struct sample* s)
-{
-	return (s->start_frame - s->data) / 2;
-}
-
-int32_t get_end(const struct sample* s)
-{
-	return (s->end_frame - s->data) / 2;
 }

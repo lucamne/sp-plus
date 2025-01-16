@@ -21,6 +21,7 @@ int main(int argc, char** argv)
 	sys.master = master;
 	// init sampler
 	struct sampler sampler = {0};
+	sampler.zoom = 1.0f;
 	
 	// init audio_playback
 	struct alsa_dev a_dev = {0};
@@ -82,16 +83,16 @@ void run(struct system* sys, struct sampler* sampler)
 			trigger_sample(&banks[0][1]);
 		}
 		if (IsKeyDown(KEY_U)) {
-			set_start(*active_sample, get_start(*active_sample) - 1000);
+			set_start(*active_sample, (*active_sample)->start_frame - 1000);
 		}
 		if (IsKeyDown(KEY_I)) {
-			set_start(*active_sample, get_start(*active_sample) + 1000);
+			set_start(*active_sample, (*active_sample)->start_frame + 1000);
 		}
 		if (IsKeyDown(KEY_J)) {
-			set_end(*active_sample, get_end(*active_sample) - 1000);
+			set_end(*active_sample, (*active_sample)->end_frame - 1000);
 		}
 		if (IsKeyDown(KEY_K)) {
-			set_end(*active_sample, get_end(*active_sample) + 1000);
+			set_end(*active_sample, (*active_sample)->end_frame + 1000);
 		}
 		// loop active sample
 		if (IsKeyPressed(KEY_L)) {
