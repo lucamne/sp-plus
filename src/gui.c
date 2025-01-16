@@ -19,10 +19,10 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 	const struct sample* s = sampler->active_sample;
 
 	// calculate zoom parameters
-	const int frames_to_draw = (int) (s->num_frames / sampler->zoom);
-	const int focused_frame = sampler->zoom_focus == END ? 
+	const int32_t frames_to_draw = s->num_frames / sampler->zoom;
+	const int32_t focused_frame = sampler->zoom_focus == END ? 
 		s->end_frame : s->start_frame;
-	int first_frame_to_draw;
+	int32_t first_frame_to_draw;
 	if (focused_frame < frames_to_draw / 2)
 		first_frame_to_draw = 0;
 	else if (	s->num_frames - focused_frame <= 

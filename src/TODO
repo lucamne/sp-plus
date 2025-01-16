@@ -1,1 +1,4 @@
+Add envelope to sample
+Add time stretching to sample
+
 can maybe remove alsa_dev struct and just use native pcm

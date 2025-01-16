@@ -21,7 +21,7 @@ int main(int argc, char** argv)
 	sys.master = master;
 	// init sampler
 	struct sampler sampler = {0};
-	sampler.zoom = 1.0f;
+	sampler.zoom = 1;
 	
 	// init audio_playback
 	struct alsa_dev a_dev = {0};
@@ -83,16 +83,24 @@ void run(struct system* sys, struct sampler* sampler)
 			trigger_sample(&banks[0][1]);
 		}
 		if (IsKeyDown(KEY_U)) {
-			set_start(*active_sample, (*active_sample)->start_frame - 1000);
+			const int32_t f = (*active_sample)->start_frame - 1000 / sampler->zoom;
+			set_start(*active_sample, f);
+			sampler->zoom_focus = START;
 		}
 		if (IsKeyDown(KEY_I)) {
-			set_start(*active_sample, (*active_sample)->start_frame + 1000);
+			const int32_t f = (*active_sample)->start_frame + 1000 / sampler->zoom;
+			set_start(*active_sample, f);
+			sampler->zoom_focus = START;
 		}
 		if (IsKeyDown(KEY_J)) {
-			set_end(*active_sample, (*active_sample)->end_frame - 1000);
+			const int32_t f = (*active_sample)->end_frame - 1000 / sampler->zoom;
+			set_end(*active_sample, f);
+			sampler->zoom_focus = END;
 		}
 		if (IsKeyDown(KEY_K)) {
-			set_end(*active_sample, (*active_sample)->end_frame + 1000);
+			const int32_t f = (*active_sample)->end_frame + 1000 / sampler->zoom;
+			set_end(*active_sample, f);
+			sampler->zoom_focus = END;
 		}
 		// loop active sample
 		if (IsKeyPressed(KEY_L)) {
@@ -109,11 +117,11 @@ void run(struct system* sys, struct sampler* sampler)
 			}
 		}
 		if (IsKeyPressed(KEY_EQUAL)) {
-			sampler->zoom *= 2.0f;
+			sampler->zoom *= 2;
 		}
 		if (IsKeyPressed(KEY_MINUS)) {
-			sampler->zoom /= 2.0f;
-			if (sampler->zoom < 1.0f) sampler->zoom = 1.0f;
+			sampler->zoom /= 2;
+			if (sampler->zoom < 1) sampler->zoom = 1;
 		}
 		// draw
 		draw(sys, sampler);

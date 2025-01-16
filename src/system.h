@@ -17,7 +17,7 @@ typedef enum { PLAY, START, END } Marker;
 // holds data needed by sampler module
 struct sampler {
 	struct sample* active_sample;
-	float zoom;
+	int zoom;
 	Marker zoom_focus;
 };
 
