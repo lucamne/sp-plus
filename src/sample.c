@@ -81,8 +81,8 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	// watch for memory leak with data
 	s->data = NULL;
 	s->playing = false;
-	s->loop = false;
 	s->frame_increment = 1.0f;
+	s->loop_mode = OFF;
 
 	struct wav_file w = {0};
 	if (load_wav(&w, path)) return 1;
@@ -150,7 +150,7 @@ int trigger_sample(struct sample* s)
 	if (!s->reverse) s->next_frame = s->start_frame;
 	else s->next_frame = s->end_frame - 1.0;
 
-	if (s->loop && s->playing)
+	if (s->loop_mode && s->playing)
 		s->playing = false;
 	else
 		s->playing = true;
@@ -191,10 +191,28 @@ static int increment_frame(struct sample* s)
 	else if (frac > 0.999)
 		next_frame = (int) next_frame + 1.0;
 
-	if (next_frame > s->end_frame - 1.0 || next_frame < s->start_frame) {
-		if (!s->reverse) s->next_frame = s->start_frame;
-		else s->next_frame = s->end_frame - 1.0;
-		s->playing = s->loop ? true : false;
+	// control playback behavior when next_frame goes out of bounds
+	// sample will either be killed or loop in LOOP or PONG_PONG mode
+	// if sample playing forward goes out of bounds
+	if (next_frame > s->end_frame - 1.0 ) {
+		if (s->loop_mode == PING_PONG) { 
+			s->next_frame = s->end_frame - 1.0;
+			s->frame_increment *= -1;
+		} else if (s->loop_mode == LOOP) {
+			s->next_frame = s->start_frame;
+		} else {
+			kill_sample(s);
+		}
+	// if sample playing backwards goes out of bounds
+	} else if (next_frame < s->start_frame) {
+		if (s->loop_mode == PING_PONG) {
+			s->next_frame = s->start_frame;
+			s->frame_increment *= -1;
+		} else if (s->loop_mode == LOOP) {
+			s->next_frame = s->end_frame - 1.0;
+		} else {
+			kill_sample(s);
+		}
 	} else {
 		s->next_frame = next_frame;
 	}
@@ -227,7 +245,12 @@ int kill_sample(struct sample* s)
 {
 	if (!s) return 1;
 	s->playing = false;
-	if (s->reverse)	s->next_frame = s->end_frame - 1.0;
-	else s->next_frame = s->start_frame;
+	if (s->reverse)	{
+		s->next_frame = s->end_frame - 1.0;
+		if (s->frame_increment > 0) s->frame_increment *= -1.0;
+	} else {
+		s->next_frame = s->start_frame;
+		if (s->frame_increment < 0) s->frame_increment *= -1.0;
+	}
 	return 0;
 }

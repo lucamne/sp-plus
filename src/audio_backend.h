@@ -14,6 +14,7 @@
  * Luca Negris - 01/2025
  */
 
+typedef enum {OFF, LOOP, PING_PONG} LOOP_MODE;
 // container for audio data
 // the source of all playback is a sample
 struct sample {
@@ -29,7 +30,7 @@ struct sample {
 	int rate;		// sample_rate in Hz
 
 	bool playing;		// is sample currently playing
-	bool loop;		// is sample in loop mode
+	LOOP_MODE loop_mode;
 	bool reverse;		// is sample playing from start to end
 	int32_t attack;		// attack in frames
 	int32_t release;	// release in frames

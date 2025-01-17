@@ -108,9 +108,17 @@ void run(struct system* sys, struct sampler* sampler)
 			(*active_sample)->reverse = !(*active_sample)->reverse;
 			(*active_sample)->frame_increment *= -1.0;
 		}
-		// loop active sample
+		// set loop mode to OFF
+		if (IsKeyPressed(KEY_O)) {
+			(*active_sample)->loop_mode = OFF;
+		}
+		// set loop mode to PING_PONG
+		if (IsKeyPressed(KEY_P)) {
+			(*active_sample)->loop_mode = PING_PONG;
+		}
+		// set loop mode to LOOP
 		if (IsKeyPressed(KEY_L)) {
-			(*active_sample)->loop = !(*active_sample)->loop;
+			(*active_sample)->loop_mode = LOOP;
 		}
 		// stop all samples
 		if (IsKeyPressed(KEY_X)) {
