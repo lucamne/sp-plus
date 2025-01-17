@@ -103,6 +103,11 @@ void run(struct system* sys, struct sampler* sampler)
 			set_end(*active_sample, f);
 			sampler->zoom_focus = END;
 		}
+		// reverse active sample
+		if (IsKeyPressed(KEY_R)) {
+			(*active_sample)->reverse = !(*active_sample)->reverse;
+			(*active_sample)->frame_increment *= -1.0;
+		}
 		// loop active sample
 		if (IsKeyPressed(KEY_L)) {
 			(*active_sample)->loop = !(*active_sample)->loop;
@@ -111,9 +116,7 @@ void run(struct system* sys, struct sampler* sampler)
 		if (IsKeyPressed(KEY_X)) {
 			for (int b = 0; b < sys->num_banks; b++) {
 				for (int p = 0; p < NUM_PADS; p++) {
-					banks[b][p].playing = false;
-					banks[b][p].next_frame = 
-						banks[b][p].start_frame;
+					kill_sample(&banks[b][p]);
 				}
 			}
 		}

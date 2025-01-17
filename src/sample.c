@@ -82,6 +82,7 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	s->data = NULL;
 	s->playing = false;
 	s->loop = false;
+	s->frame_increment = 1.0f;
 
 	struct wav_file w = {0};
 	if (load_wav(&w, path)) return 1;
@@ -146,7 +147,9 @@ int load_wav_into_sample(struct sample* s, const char* path)
 
 int trigger_sample(struct sample* s)
 {
-	s->next_frame = s->start_frame;
+	if (!s->reverse) s->next_frame = s->start_frame;
+	else s->next_frame = s->end_frame - 1.0;
+
 	if (s->loop && s->playing)
 		s->playing = false;
 	else
@@ -157,15 +160,11 @@ int set_start(struct sample* s, int32_t frame)
 {
 	if (!s) return 1;
 
-	if (frame < 0)
-		s->start_frame = 0;
-	else if (frame >= s->end_frame) 
-		s->start_frame = s->end_frame - 1;
-	else 
-		s->start_frame = frame;
+	if (frame < 0) s->start_frame = 0;
+	else if (frame >= s->end_frame) s->start_frame = s->end_frame - 1;
+	else s->start_frame = frame;
 
-	if (!s->playing)
-		s->next_frame = s->start_frame;
+	if (!s->playing) kill_sample(s);
 	return 0;
 }
 
@@ -173,11 +172,62 @@ int set_end(struct sample* s, int32_t frame)
 {
 	if (!s) return 1;
 
-	if (frame > s->num_frames)
-		s->end_frame = s->num_frames;
-	else if (frame <= s->start_frame)
-		s->end_frame = s->start_frame + 1;
-	else
-		s->end_frame = frame;
+	if (frame > s->num_frames) s->end_frame = s->num_frames;
+	else if (frame <= s->start_frame) s->end_frame = s->start_frame + 1;
+	else s->end_frame = frame;
+
+	if (!s->playing) kill_sample(s);
+	return 0;
+}
+
+static int increment_frame(struct sample* s)
+{
+	if (!s) return 1;
+	// round up or down if fractional difference is very small
+	double next_frame = s->next_frame + s->frame_increment;
+	const double frac = next_frame - (int) next_frame;
+	if (frac < 0.001)
+		next_frame = (int) next_frame;
+	else if (frac > 0.999)
+		next_frame = (int) next_frame + 1.0;
+
+	if (next_frame > s->end_frame - 1.0 || next_frame < s->start_frame) {
+		if (!s->reverse) s->next_frame = s->start_frame;
+		else s->next_frame = s->end_frame - 1.0;
+		s->playing = s->loop ? true : false;
+	} else {
+		s->next_frame = next_frame;
+	}
+	return 0;
+}
+
+int process_next_frame(double out[], struct sample* s)
+{
+	if (!s) return 1;
+	// need to interpolate fractional next_frame
+	const int32_t base_frame  = (int) s->next_frame;
+	const double ratio = s->next_frame - (double) base_frame;
+	for (int c = 0; c < NUM_CHANNELS; c++)
+	{
+		out[c] = s->data[base_frame * NUM_CHANNELS + c] * (1.0 - ratio);
+		out[c] += s->data[(base_frame + 1) * NUM_CHANNELS + c] * ratio;
+		if (s->attack && s->next_frame - s->start_frame < s->attack) {
+			out[c] *= (double) (s->next_frame - s->start_frame) / 
+				(double) s->attack;
+		} else if (s->release && s->end_frame - s->next_frame <= s->release) {
+			out[c] *= (double) (s->end_frame - s->next_frame) / 
+				(double) s->release;
+		}
+	}
+	increment_frame(s);
+	return 0;
+}
+
+int kill_sample(struct sample* s)
+{
+	if (!s) return 1;
+	s->playing = false;
+	if (s->reverse)	s->next_frame = s->end_frame - 1.0;
+	else s->next_frame = s->start_frame;
 	return 0;
 }

@@ -20,14 +20,17 @@ struct sample {
 	double* data;		// 16_bit float data
 	int32_t start_frame;	// start playback on this frame
 	int32_t end_frame;	// end when this frame is reached 
-	int32_t next_frame;	// next frame to be played during playback
+	double next_frame;	// next frame to be played during playback
+				// next frame is fractional to allow stretching
 
 	int frame_size;		// size in bytes
 	int32_t num_frames;
+	float frame_increment;	// amnt to increment by in frames after processing
 	int rate;		// sample_rate in Hz
 
 	bool playing;		// is sample currently playing
 	bool loop;		// is sample in loop mode
+	bool reverse;		// is sample playing from start to end
 	int32_t attack;		// attack in frames
 	int32_t release;	// release in frames
 };
@@ -70,6 +73,10 @@ int trigger_sample(struct sample* s);
 int set_start(struct sample* s, int32_t frame);
 // set end_frame
 int set_end(struct sample* s, int32_t frame);
+// process next frame into out and increment s->next_frame after
+int process_next_frame(double out[], struct sample* s);
+// stops playback and sets next_frame to correct position based on playback options
+int kill_sample(struct sample* s);
 
 //------------------------------------------------------------------------------
 // Bus Control Functions: bus.c
