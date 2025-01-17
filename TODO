@@ -1,0 +1,6 @@
+Reverse sample
+Add time stretching to sample
+Add grid + snapping
+Flesh out UI
+
+can maybe remove alsa_dev struct and just use native pcm

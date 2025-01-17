@@ -1,7 +1,0 @@
-Remove gui.h
-Free wav_file at the end of sample load
-check if zeroing out sample is needed
-Add envelope to sample
-Add time stretching to sample
-
-can maybe remove alsa_dev struct and just use native pcm

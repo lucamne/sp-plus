@@ -77,17 +77,9 @@ static int resample(struct sample* s, int rate_in, int rate_out)
 // read wav file into provided sample
 int load_wav_into_sample(struct sample* s, const char* path)
 {
-	// zero out sample
-	// watch for memory leak with data and next_frame
+	// zero out value which will not be reset
+	// watch for memory leak with data
 	s->data = NULL;
-	s->start_frame = 0;
-	s->end_frame = 0;
-	s->frame_size = 0;
-	s->next_frame = 0;
-	s->num_frames = 0;
-	s->rate = 0;
-	s->atten = 0.0f;
-	s->pan = 0.0f;
 	s->playing = false;
 	s->loop = false;
 
@@ -145,6 +137,7 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	s->next_frame = 0;
 	s->start_frame = 0;
 	s->end_frame = s->num_frames;
+	free(w.data);
 
 	print_sample(s);
 	return 0;

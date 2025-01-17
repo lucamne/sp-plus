@@ -7,6 +7,7 @@
 #include <alsa/asoundlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <math.h>
 
 /*
  * For representing and processing audio within the application
@@ -25,10 +26,10 @@ struct sample {
 	int32_t num_frames;
 	int rate;		// sample_rate in Hz
 
-	float atten; 		// attenuation, 0.0 none 1.0 is max
-	float pan; 		// stereo pan [-1.0 - 1.0]
 	bool playing;		// is sample currently playing
 	bool loop;		// is sample in loop mode
+	int32_t attack;		// attack in frames
+	int32_t release;	// release in frames
 };
 
 // Used to route and mix audio data
@@ -39,7 +40,7 @@ struct bus {
 	struct bus** bus_ins;		// bus inputs
 	int num_bus_ins;
 
-	float atten;			// attenuation, 0.0 is none 1.0 is max
+	float atten;			// attenuation gain, [0.0, 1.0]
 	float pan;			// -1.0 = L, 1.0 = R
 	
 	bool active;			// should date be grabbed from bus
@@ -92,4 +93,11 @@ int open_alsa_dev(struct alsa_dev* a_dev, int rate, int num_c);
 
 // starts signal handler and callback which calls process_bus on master
 int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master);
+
+//------------------------------------------------------------------------------
+// Utility DSP function
+// -----------------------------------------------------------------------------
+
+static double gain_to_dbfs(double d) { return 20.0 * log10(fabs(d)); }
+static double dbfs_to_gain(double d) { return pow(10.0, d / 20.0); }
 #endif

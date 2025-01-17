@@ -2,7 +2,6 @@
 #include "file_io.h"
 #include "system.h"
 #include "audio_backend.h"
-#include "gui.h"
 #include "raylib.h"
 
 #define WAV1 "../test/drums/R-8ride1.wav"
@@ -47,6 +46,8 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Error loading %s\n", WAV1);
 		return 0;
 	}
+	sys.banks[0][0].attack = 10000;
+	sys.banks[0][0].release = 10000;
 	if (load_wav_into_sample(&sys.banks[0][1], WAV2)) {
 		fprintf(stderr, "Error loading %s\n", WAV2);
 		return 0;

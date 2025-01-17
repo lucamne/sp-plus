@@ -2,7 +2,6 @@
 #include "defs.h"
 
 #include <stdlib.h>
-#include <math.h>
 
 static unsigned int period_time = 2500;		// period time in usec
 static unsigned int buffer_time = 5000;		// buffer time in usec
@@ -186,9 +185,17 @@ static void process_leaf_nodes(double out[], struct bus* b)
 	// process sample input
 	struct sample* s = b->sample_in;
 	if (s && s->playing) {
-		// apply sample dsp
-		out[0] += s->data[s->next_frame * NUM_CHANNELS];
-		out[1] += s->data[s->next_frame * NUM_CHANNELS + 1];
+		double l = s->data[s->next_frame * NUM_CHANNELS];
+		double r = s->data[s->next_frame * NUM_CHANNELS + 1];
+		if (s->attack && s->next_frame - s->start_frame < s->attack) {
+			l *= (double) (s->next_frame - s->start_frame) / (double) s->attack;
+			r *= (double) (s->next_frame - s->start_frame) / (double) s->attack;
+		} else if (s->release && s->end_frame - s->next_frame <= s->release) {
+			l *= (double) (s->end_frame - s->next_frame) / (double) s->release;
+			r *= (double) (s->end_frame - s->next_frame) / (double) s->release;
+		}
+		out[0] += l;
+		out[1] += r;
 		// increment frame pointer or reset to beginning
 		if (s->next_frame + 1 >= s->end_frame) {
 			s->next_frame = s->start_frame;
