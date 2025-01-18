@@ -81,7 +81,7 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	// watch for memory leak with data
 	s->data = NULL;
 	s->playing = false;
-	s->frame_increment = 1.0f;
+	s->frame_increment = 100;
 	s->loop_mode = OFF;
 	s->gate_closed = false;
 
@@ -196,12 +196,12 @@ static int increment_frame(struct sample* s)
 {
 	if (!s) return 1;
 	// round up or down if fractional difference is very small
-	double next_frame = s->next_frame + s->frame_increment;
+	double next_frame = s->next_frame + s->frame_increment / 100.0; 
 	const double frac = next_frame - (int) next_frame;
-	if (frac < 0.001)
+	if (fabs(frac) < 0.001)
 		next_frame = (int) next_frame;
-	else if (frac > 0.999)
-		next_frame = (int) next_frame + 1.0;
+	else if (fabs(frac) > 0.999)
+		next_frame = (int) next_frame + 1;
 
 
 	// control playback behavior when next_frame goes out of bounds
@@ -209,9 +209,9 @@ static int increment_frame(struct sample* s)
 	// Sample will either be killed or loop in LOOP or PONG_PONG mode
 
 	// if sample playing forward goes out of bounds
-	if (next_frame > s->end_frame - 1.0 ) {
+	if (next_frame > s->end_frame - 1 ) {
 		if (s->loop_mode == PING_PONG) { 
-			s->next_frame = s->end_frame - 1.0;
+			s->next_frame = s->end_frame - 1;
 			s->frame_increment *= -1;
 		} else if (s->loop_mode == LOOP) {
 			s->next_frame = s->start_frame;
@@ -224,7 +224,7 @@ static int increment_frame(struct sample* s)
 			s->next_frame = s->start_frame;
 			s->frame_increment *= -1;
 		} else if (s->loop_mode == LOOP) {
-			s->next_frame = s->end_frame - 1.0;
+			s->next_frame = s->end_frame - 1;
 		} else {
 			kill_sample(s);
 		}
@@ -244,7 +244,7 @@ static int increment_frame(struct sample* s)
 
 static double get_envelope_gain(struct sample* s)
 {
-	double g = 1.0f;
+	double g = 1.0;
 	if (s->attack && s->next_frame - s->start_frame < s->attack) {
 		g = (s->next_frame - s->start_frame) / s->attack;
 	} else if (s->release && s->end_frame - s->next_frame <= s->release) {
@@ -258,11 +258,11 @@ int process_next_frame(double out[], struct sample* s)
 {
 	if (!s) return 1;
 	// need to interpolate fractional next_frame
-	const int32_t base_frame  = (int) s->next_frame;
-	const double ratio = s->next_frame - (double) base_frame;
+	const int32_t base_frame  = s->next_frame;
+	const double ratio = s->next_frame - base_frame;
 	for (int c = 0; c < NUM_CHANNELS; c++)
 	{
-		out[c] = s->data[base_frame * NUM_CHANNELS + c] * (1.0 - ratio);
+		out[c] = s->data[base_frame * NUM_CHANNELS + c] * (1 - ratio);
 		out[c] += s->data[(base_frame + 1) * NUM_CHANNELS + c] * ratio;
 		if (s->gate_closed) {
 			out[c] *= (s->gate_release - s->gate_release_cnt) /
@@ -281,11 +281,11 @@ int kill_sample(struct sample* s)
 	s->playing = false;
 	s->gate_closed = false;
 	if (s->reverse)	{
-		s->next_frame = s->end_frame - 1.0;
-		if (s->frame_increment > 0) s->frame_increment *= -1.0;
+		s->next_frame = s->end_frame - 1;
+		if (s->frame_increment > 0) s->frame_increment *= -1;
 	} else {
 		s->next_frame = s->start_frame;
-		if (s->frame_increment < 0) s->frame_increment *= -1.0;
+		if (s->frame_increment < 0) s->frame_increment *= -1;
 	}
 	return 0;
 }
@@ -314,7 +314,7 @@ int close_gate(struct sample* s)
 	s->gate_closed = true;
 	s->gate_close_gain = get_envelope_gain(s);
 	// if sample is playing forward compare to release
-	if (s->frame_increment > 0.0) {
+	if (s->frame_increment > 0) {
 		s->gate_release = s->release;
 		if (s->end_frame - s->next_frame < s->release)
 			s->gate_release_cnt = s->release - (s->end_frame - s->next_frame);
@@ -325,4 +325,15 @@ int close_gate(struct sample* s)
 			s->gate_release_cnt = s->release - (s->next_frame - s->start_frame);
 	}
 	return 0;
+}
+
+void set_frame_increment(struct sample* s, const int inc)
+{
+	static const float MAX_INC = 200;
+	static const float MIN_INC = 1;
+
+	if (inc < MIN_INC || inc > MAX_INC) return;
+
+	const char sign = s->frame_increment > 0 ? 1 : -1;
+	s->frame_increment = sign * inc;
 }

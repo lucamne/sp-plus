@@ -93,6 +93,15 @@ void run(struct system* sys, struct sampler* sampler)
 				IsKeyUp(KEY_W)) {
 			close_gate(&banks[0][1]);
 		}
+		// set stretch
+		if (IsKeyPressed(KEY_S)) {
+			const int f = abs((*active_sample)->frame_increment);
+			set_frame_increment(*active_sample, f + 10);
+		}
+		if (IsKeyPressed(KEY_A)) {
+			const int f = abs((*active_sample)->frame_increment);
+			set_frame_increment(*active_sample, f - 10);
+		}
 		// move markers
 		if (IsKeyDown(KEY_U)) {
 			const int32_t f = (*active_sample)->start_frame - 1000 / sampler->zoom;

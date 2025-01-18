@@ -26,7 +26,8 @@ struct sample {
 
 	int frame_size;		// size in bytes
 	int32_t num_frames;
-	float frame_increment;	// amnt to increment by in frames after processing
+	int frame_increment;	// amnt * 100 to increment by in frames after processing
+				// represented as int to avoid some rounding errors
 	int rate;		// sample_rate in Hz
 
 	bool gate;		// trigger sample in gate mode
@@ -93,6 +94,8 @@ int close_gate(struct sample* s);
 int process_next_frame(double out[], struct sample* s);
 // stops playback and sets next_frame to correct position based on playback options
 int kill_sample(struct sample* s);
+// [1, 200], 100 is normal
+void set_frame_increment(struct sample* s, const int inc);
 
 //------------------------------------------------------------------------------
 // Bus Control Functions: bus.c
