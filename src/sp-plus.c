@@ -74,15 +74,20 @@ void run(struct system* sys, struct sampler* sampler)
 	struct sample** active_sample = &sampler->active_sample;
 	
 	while(!WindowShouldClose()) {
-		// update
+		// trigger samples
 		if (IsKeyPressed(KEY_Q)) {
 			*active_sample = &banks[0][0];
 			trigger_sample(&banks[0][0]);
+		} else if (banks[0][0].gate && banks[0][0].playing && IsKeyUp(KEY_Q)) {
+			kill_sample(&banks[0][0]);
 		}
 		if (IsKeyPressed(KEY_W)) {
 			*active_sample = &banks[0][1];
 			trigger_sample(&banks[0][1]);
+		} else if (banks[0][1].gate && banks[0][1].playing && IsKeyUp(KEY_W)) {
+			kill_sample(&banks[0][1]);
 		}
+		// move markers
 		if (IsKeyDown(KEY_U)) {
 			const int32_t f = (*active_sample)->start_frame - 1000 / sampler->zoom;
 			set_start(*active_sample, f);
@@ -103,20 +108,20 @@ void run(struct system* sys, struct sampler* sampler)
 			set_end(*active_sample, f);
 			sampler->zoom_focus = END;
 		}
-		// reverse active sample
+		// set playback modes
+		if (IsKeyPressed(KEY_G)) {
+			(*active_sample)->gate = !(*active_sample)->gate;
+		}
 		if (IsKeyPressed(KEY_R)) {
 			(*active_sample)->reverse = !(*active_sample)->reverse;
 			(*active_sample)->frame_increment *= -1.0;
 		}
-		// set loop mode to OFF
 		if (IsKeyPressed(KEY_O)) {
 			(*active_sample)->loop_mode = OFF;
 		}
-		// set loop mode to PING_PONG
 		if (IsKeyPressed(KEY_P)) {
 			(*active_sample)->loop_mode = PING_PONG;
 		}
-		// set loop mode to LOOP
 		if (IsKeyPressed(KEY_L)) {
 			(*active_sample)->loop_mode = LOOP;
 		}

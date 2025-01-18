@@ -29,6 +29,7 @@ struct sample {
 	float frame_increment;	// amnt to increment by in frames after processing
 	int rate;		// sample_rate in Hz
 
+	bool gate;		// trigger sample in gate mode
 	bool playing;		// is sample currently playing
 	LOOP_MODE loop_mode;
 	bool reverse;		// is sample playing from start to end
@@ -74,6 +75,8 @@ int trigger_sample(struct sample* s);
 int set_start(struct sample* s, int32_t frame);
 // set end_frame
 int set_end(struct sample* s, int32_t frame);
+int set_attack(struct sample* s, int32_t frame);
+int set_release(struct sample* s, int32_t frame);
 // process next frame into out and increment s->next_frame after
 int process_next_frame(double out[], struct sample* s);
 // stops playback and sets next_frame to correct position based on playback options

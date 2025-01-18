@@ -254,3 +254,17 @@ int kill_sample(struct sample* s)
 	}
 	return 0;
 }
+
+int set_attack(struct sample* s, int32_t frames)
+{
+	if (s->start_frame < frames) return 1;
+	s->attack = frames;
+	return 0;
+}
+
+int set_release(struct sample* s, int32_t frames)
+{
+	if (s->num_frames - s->end_frame < frames) return 1;
+	s->release = frames;
+	return 0;
+}
