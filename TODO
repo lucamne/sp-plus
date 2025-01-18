@@ -1,6 +1,4 @@
-add variable frame increment
-add ping pong loop
-Reverse sample
+figure out better method for envelope
 Add time stretching to sample
 Add grid + snapping
 Flesh out UI
