@@ -46,8 +46,8 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Error loading %s\n", WAV1);
 		return 0;
 	}
-	sys.banks[0][0].attack = 10000;
-	sys.banks[0][0].release = 10000;
+	set_attack(&sys.banks[0][0], 10000);
+	set_release(&sys.banks[0][0], 10000);
 	if (load_wav_into_sample(&sys.banks[0][1], WAV2)) {
 		fprintf(stderr, "Error loading %s\n", WAV2);
 		return 0;
@@ -78,14 +78,20 @@ void run(struct system* sys, struct sampler* sampler)
 		if (IsKeyPressed(KEY_Q)) {
 			*active_sample = &banks[0][0];
 			trigger_sample(&banks[0][0]);
-		} else if (banks[0][0].gate && banks[0][0].playing && IsKeyUp(KEY_Q)) {
-			kill_sample(&banks[0][0]);
+		} else if (	banks[0][0].gate && 
+				banks[0][0].playing && 
+				!banks[0][0].gate_closed && 
+				IsKeyUp(KEY_Q)) {
+			close_gate(&banks[0][0]);
 		}
 		if (IsKeyPressed(KEY_W)) {
 			*active_sample = &banks[0][1];
 			trigger_sample(&banks[0][1]);
-		} else if (banks[0][1].gate && banks[0][1].playing && IsKeyUp(KEY_W)) {
-			kill_sample(&banks[0][1]);
+		} else if (	banks[0][1].gate && 
+				banks[0][1].playing && 
+				!banks[0][0].gate_closed && 
+				IsKeyUp(KEY_W)) {
+			close_gate(&banks[0][1]);
 		}
 		// move markers
 		if (IsKeyDown(KEY_U)) {

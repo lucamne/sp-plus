@@ -33,8 +33,14 @@ struct sample {
 	bool playing;		// is sample currently playing
 	LOOP_MODE loop_mode;
 	bool reverse;		// is sample playing from start to end
+
 	int32_t attack;		// attack in frames
 	int32_t release;	// release in frames
+
+	bool gate_closed;	// need to know when gate closes to apply release
+	int32_t gate_release;	// used to calculate release after gate is closed
+	// how many frames have passed since gate was closed
+	double gate_release_cnt;
 };
 
 // Used to route and mix audio data
@@ -70,13 +76,18 @@ struct alsa_dev {
 // load wav into provided sample, return 0 iff success
 // NOTE: function not responsible for freeing any memory allocated by caller
 int load_wav_into_sample(struct sample* s, const char* path);
+
 int trigger_sample(struct sample* s);
 // set start frame
 int set_start(struct sample* s, int32_t frame);
 // set end_frame
 int set_end(struct sample* s, int32_t frame);
+
 int set_attack(struct sample* s, int32_t frame);
+
 int set_release(struct sample* s, int32_t frame);
+// controls behaviour of sample in gate trigger mode when gate is released
+int close_gate(struct sample* s);
 // process next frame into out and increment s->next_frame after
 int process_next_frame(double out[], struct sample* s);
 // stops playback and sets next_frame to correct position based on playback options

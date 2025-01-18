@@ -83,6 +83,7 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	s->playing = false;
 	s->frame_increment = 1.0f;
 	s->loop_mode = OFF;
+	s->gate_closed = false;
 
 	struct wav_file w = {0};
 	if (load_wav(&w, path)) return 1;
@@ -191,8 +192,11 @@ static int increment_frame(struct sample* s)
 	else if (frac > 0.999)
 		next_frame = (int) next_frame + 1.0;
 
+
 	// control playback behavior when next_frame goes out of bounds
-	// sample will either be killed or loop in LOOP or PONG_PONG mode
+	// or when sample is in gate trigger mode and the gate is closed
+	// Sample will either be killed or loop in LOOP or PONG_PONG mode
+
 	// if sample playing forward goes out of bounds
 	if (next_frame > s->end_frame - 1.0 ) {
 		if (s->loop_mode == PING_PONG) { 
@@ -213,7 +217,15 @@ static int increment_frame(struct sample* s)
 		} else {
 			kill_sample(s);
 		}
+	// logic for release of gate in gate trigger mode
+	} else if (	s->gate_closed && 
+			s->gate_release_cnt + fabs(next_frame - s->next_frame) > 
+			s->gate_release) {
+		kill_sample(s);
 	} else {
+		if (s->gate_closed) {
+			s->gate_release_cnt += fabs(next_frame - s->next_frame);
+		}
 		s->next_frame = next_frame;
 	}
 	return 0;
@@ -229,12 +241,13 @@ int process_next_frame(double out[], struct sample* s)
 	{
 		out[c] = s->data[base_frame * NUM_CHANNELS + c] * (1.0 - ratio);
 		out[c] += s->data[(base_frame + 1) * NUM_CHANNELS + c] * ratio;
-		if (s->attack && s->next_frame - s->start_frame < s->attack) {
-			out[c] *= (double) (s->next_frame - s->start_frame) / 
-				(double) s->attack;
+		if (s->gate_closed) {
+			out[c] *= (s->gate_release - s->gate_release_cnt) /
+				s->gate_release;
+		} else if (s->attack && s->next_frame - s->start_frame < s->attack) {
+			out[c] *= (s->next_frame - s->start_frame) / s->attack;
 		} else if (s->release && s->end_frame - s->next_frame <= s->release) {
-			out[c] *= (double) (s->end_frame - s->next_frame) / 
-				(double) s->release;
+			out[c] *= (s->end_frame - s->next_frame) / s->release;
 		}
 	}
 	increment_frame(s);
@@ -245,6 +258,7 @@ int kill_sample(struct sample* s)
 {
 	if (!s) return 1;
 	s->playing = false;
+	s->gate_closed = false;
 	if (s->reverse)	{
 		s->next_frame = s->end_frame - 1.0;
 		if (s->frame_increment > 0) s->frame_increment *= -1.0;
@@ -257,14 +271,36 @@ int kill_sample(struct sample* s)
 
 int set_attack(struct sample* s, int32_t frames)
 {
-	if (s->start_frame < frames) return 1;
+	if (!s) return 1;
+	if (s->end_frame - s->start_frame - s->release < frames) return 1;
 	s->attack = frames;
 	return 0;
 }
 
 int set_release(struct sample* s, int32_t frames)
 {
-	if (s->num_frames - s->end_frame < frames) return 1;
+	if (!s) return 1;
+	if (s->end_frame - s->start_frame - s->attack < frames) return 1;
 	s->release = frames;
+	return 0;
+}
+
+
+int close_gate(struct sample* s)
+{
+	if (!s) return 1;
+	s->gate_release_cnt = 0.0;
+	s->gate_closed = true;
+	// if sample is playing forward compare to release
+	if (s->frame_increment > 0.0) {
+		s->gate_release = s->release;
+		if (s->end_frame - s->next_frame < s->release)
+			s->gate_release_cnt = s->release - (s->end_frame - s->next_frame);
+	// if sample is playing backward compare to attack
+	} else {
+		s->gate_release = s->attack;
+		if (s->next_frame - s->start_frame < s->attack)
+			s->gate_release_cnt = s->release - (s->next_frame - s->start_frame);
+	}
 	return 0;
 }
