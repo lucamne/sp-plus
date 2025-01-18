@@ -157,6 +157,15 @@ int trigger_sample(struct sample* s)
 		s->playing = true;
 }
 
+// squeeze attack and release frames to fit within start and end frames
+static void squeeze_envelope(struct sample* s )
+{
+	if (s->end_frame - s->start_frame > s->attack + s->release) return;
+	float r = (float) s->attack / (s->release + s->attack);
+	s->attack = (s->end_frame - s->start_frame) * r;
+	s->release = s->end_frame - s->start_frame - s->attack;
+}
+
 int set_start(struct sample* s, int32_t frame)
 {
 	if (!s) return 1;
@@ -165,6 +174,7 @@ int set_start(struct sample* s, int32_t frame)
 	else if (frame >= s->end_frame) s->start_frame = s->end_frame - 1;
 	else s->start_frame = frame;
 
+	squeeze_envelope(s);
 	if (!s->playing) kill_sample(s);
 	return 0;
 }
@@ -177,6 +187,7 @@ int set_end(struct sample* s, int32_t frame)
 	else if (frame <= s->start_frame) s->end_frame = s->start_frame + 1;
 	else s->end_frame = frame;
 
+	squeeze_envelope(s);
 	if (!s->playing) kill_sample(s);
 	return 0;
 }
@@ -231,6 +242,18 @@ static int increment_frame(struct sample* s)
 	return 0;
 }
 
+static double get_envelope_gain(struct sample* s)
+{
+	double g = 1.0f;
+	if (s->attack && s->next_frame - s->start_frame < s->attack) {
+		g = (s->next_frame - s->start_frame) / s->attack;
+	} else if (s->release && s->end_frame - s->next_frame <= s->release) {
+		g = (s->end_frame - s->next_frame) / s->release;
+	}
+	return g;
+}
+
+
 int process_next_frame(double out[], struct sample* s)
 {
 	if (!s) return 1;
@@ -244,11 +267,9 @@ int process_next_frame(double out[], struct sample* s)
 		if (s->gate_closed) {
 			out[c] *= (s->gate_release - s->gate_release_cnt) /
 				s->gate_release;
-		} else if (s->attack && s->next_frame - s->start_frame < s->attack) {
-			out[c] *= (s->next_frame - s->start_frame) / s->attack;
-		} else if (s->release && s->end_frame - s->next_frame <= s->release) {
-			out[c] *= (s->end_frame - s->next_frame) / s->release;
+			out[c] *= s->gate_close_gain;
 		}
+		out[c] *= get_envelope_gain(s);
 	}
 	increment_frame(s);
 	return 0;
@@ -291,12 +312,13 @@ int close_gate(struct sample* s)
 	if (!s) return 1;
 	s->gate_release_cnt = 0.0;
 	s->gate_closed = true;
+	s->gate_close_gain = get_envelope_gain(s);
 	// if sample is playing forward compare to release
 	if (s->frame_increment > 0.0) {
 		s->gate_release = s->release;
 		if (s->end_frame - s->next_frame < s->release)
 			s->gate_release_cnt = s->release - (s->end_frame - s->next_frame);
-	// if sample is playing backward compare to attack
+		// if sample is playing backward compare to attack
 	} else {
 		s->gate_release = s->attack;
 		if (s->next_frame - s->start_frame < s->attack)

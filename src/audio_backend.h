@@ -41,6 +41,7 @@ struct sample {
 	int32_t gate_release;	// used to calculate release after gate is closed
 	// how many frames have passed since gate was closed
 	double gate_release_cnt;
+	double gate_close_gain; // gain at time of gate close
 };
 
 // Used to route and mix audio data
