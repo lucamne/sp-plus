@@ -13,6 +13,8 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 	static const float THICKNESS = 2.0f;		// wave spline thickness
 	static const Color WAVE_COLOR = WHITE;		// color of wave spline
 
+	if (!sys || !sampler) return;
+
 	// sample box
 	const Rectangle rec = { 10.0f, 10.0f, 600.0f, 300.0f };
 	DrawRectangleLinesEx(rec, 3.0f, WHITE);
@@ -21,27 +23,51 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 	const Rectangle recq = { 10.0f, 320.0f, 40.0f, 40.0f};
 	if (sys->banks[0][PAD_Q].playing) DrawRectangleRounded(recq, 0.3f, 1, ORANGE);
 	else DrawRectangleRounded(recq, 0.3f, 1, WHITE);
-	DrawText("Q", 15.0f, 325.0f, 20, BLACK);
+	DrawText("q", 15.0f, 325.0f, 20, BLACK);
 
 	const Rectangle recw = { 60.0f, 320.0f, 40.0f, 40.0f};
 	if (sys->banks[0][PAD_W].playing) DrawRectangleRounded(recw, 0.3f, 1, ORANGE);
 	else DrawRectangleRounded(recw, 0.3f, 1, WHITE);
-	DrawText("W", 65.0f, 325.0f, 20, BLACK);
+	DrawText("w", 65.0f, 325.0f, 20, BLACK);
 
 	const Rectangle rece = { 110.0f, 320.0f, 40.0f, 40.0f};
 	if (sys->banks[0][PAD_E].playing) DrawRectangleRounded(rece, 0.3f, 1, ORANGE);
 	else DrawRectangleRounded(rece, 0.3f, 1, WHITE);
-	DrawText("E", 115.0f, 325.0f, 20, BLACK);
+	DrawText("e", 115.0f, 325.0f, 20, BLACK);
 
 	const Rectangle recr = { 160.0f, 320.0f, 40.0f, 40.0f};
 	if (sys->banks[0][PAD_R].playing) DrawRectangleRounded(recr, 0.3f, 1, ORANGE);
 	else DrawRectangleRounded(recr, 0.3f, 1, WHITE);
-	DrawText("R", 165.0f, 325.0f, 20, BLACK);
+	DrawText("r", 165.0f, 325.0f, 20, BLACK);
 
-	if (!sys || !sampler || !sampler->active_sample)
-		return;
+	Vector2 s1 = { 210.0f, 315.0f };
+	Vector2 s2 = { 210.0f, 365.0f };
+	DrawLineEx( s1, s2, 2.0f, WHITE);
 
+	if (!sampler->active_sample) return;
 	const struct sample* s = sampler->active_sample;
+
+	// draw playback options
+	// gate
+	DrawText("(g)ate", 220.0f, 320.0f, 20, WHITE);
+	if (s->gate) DrawRectangle(335.0f, 320.0f, 20.0f, 20.0f, WHITE);
+	else DrawRectangleLines(335.0f, 320.0f, 20.0f, 20.0f, WHITE);
+	// reverse
+	DrawText("re(v)erse", 220.0f, 345.0f, 20, WHITE);
+	if (s->reverse) DrawRectangle(335.0f, 345.0f, 20.0f, 20.0f, WHITE);
+	else DrawRectangleLines(335.0f, 345.0f, 20.0f, 20.0f, WHITE);
+
+	s1.x = 365.0f;
+	s1.y = 315.0f;
+	s2.x = 365.0f;
+	s2.y = 365.0f;
+	DrawLineEx( s1, s2, 2.0f, WHITE);
+	// loop
+	DrawText("(l)oop:", 375.0f, 320.0f, 20, WHITE);
+	if (s->loop_mode == OFF) 
+		DrawText("off", 375.0f, 345.0f, 20, WHITE);
+	else if (s->loop_mode == LOOP) DrawText("loop", 375.0f, 345.0f, 20, WHITE);
+	else DrawText("ping-pong", 375.0f, 345.0f, 20, WHITE);
 
 	// calculate zoom parameters
 	const int32_t frames_to_draw = s->num_frames / sampler->zoom;

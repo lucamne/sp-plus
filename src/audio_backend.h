@@ -14,7 +14,7 @@
  * Luca Negris - 01/2025
  */
 
-typedef enum {OFF, LOOP, PING_PONG} LOOP_MODE;
+typedef enum {OFF = 0, LOOP, PING_PONG} LOOP_MODE;
 // container for audio data
 // the source of all playback is a sample
 struct sample {

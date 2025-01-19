@@ -69,18 +69,15 @@ void update_sampler(struct system* sys, struct sampler* sampler)
 	if (IsKeyPressed(KEY_G)) {
 		(*active_sample)->gate = !(*active_sample)->gate;
 	}
-	if (IsKeyPressed(KEY_R)) {
+	if (IsKeyPressed(KEY_V)) {
 		(*active_sample)->reverse = !(*active_sample)->reverse;
 		(*active_sample)->frame_increment *= -1.0;
 	}
-	if (IsKeyPressed(KEY_O)) {
-		(*active_sample)->loop_mode = OFF;
-	}
-	if (IsKeyPressed(KEY_P)) {
-		(*active_sample)->loop_mode = PING_PONG;
-	}
 	if (IsKeyPressed(KEY_L)) {
-		(*active_sample)->loop_mode = LOOP;
+		if ((*active_sample)->loop_mode == PING_PONG)
+			(*active_sample)->loop_mode = OFF;
+		else
+			(*active_sample)->loop_mode += 1;
 	}
 	// stop all samples
 	if (IsKeyPressed(KEY_X)) {
