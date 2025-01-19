@@ -13,6 +13,7 @@ struct system {
 	// struct alsa_dev playback_dev;	// alsa playback device
 };
 
+enum { PAD_Q = 0, PAD_W, PAD_E, PAD_R };
 typedef enum { PLAY, START, END } Marker;
 // holds data needed by sampler module
 struct sampler {

@@ -7,11 +7,36 @@
 static void draw_sample_view(const struct system* sys, const struct sampler* sampler)
 {
 	static const int MAX_POINTS = 4000;		// max points to render
-	static const float WAVE_WIDTH = 770.0f;		// width of wave spline 
-	static const float WAVE_HEIGHT = 400.0f;	// max height of wave spline
-	static const Vector2 ORIGIN = {15.0f, 225.0f};	// origin of wave spline
+	static const float WAVE_WIDTH = 580.0f;		// width of wave spline 
+	static const float WAVE_HEIGHT = 280.0f;	// max height of wave spline
+	static const Vector2 ORIGIN = {20.0f, 160.0f};	// origin of wave spline
 	static const float THICKNESS = 2.0f;		// wave spline thickness
 	static const Color WAVE_COLOR = WHITE;		// color of wave spline
+
+	// sample box
+	const Rectangle rec = { 10.0f, 10.0f, 600.0f, 300.0f };
+	DrawRectangleLinesEx(rec, 3.0f, WHITE);
+
+	// draw sample pads
+	const Rectangle recq = { 10.0f, 320.0f, 40.0f, 40.0f};
+	if (sys->banks[0][PAD_Q].playing) DrawRectangleRounded(recq, 0.3f, 1, ORANGE);
+	else DrawRectangleRounded(recq, 0.3f, 1, WHITE);
+	DrawText("Q", 15.0f, 325.0f, 20, BLACK);
+
+	const Rectangle recw = { 60.0f, 320.0f, 40.0f, 40.0f};
+	if (sys->banks[0][PAD_W].playing) DrawRectangleRounded(recw, 0.3f, 1, ORANGE);
+	else DrawRectangleRounded(recw, 0.3f, 1, WHITE);
+	DrawText("W", 65.0f, 325.0f, 20, BLACK);
+
+	const Rectangle rece = { 110.0f, 320.0f, 40.0f, 40.0f};
+	if (sys->banks[0][PAD_E].playing) DrawRectangleRounded(rece, 0.3f, 1, ORANGE);
+	else DrawRectangleRounded(rece, 0.3f, 1, WHITE);
+	DrawText("E", 115.0f, 325.0f, 20, BLACK);
+
+	const Rectangle recr = { 160.0f, 320.0f, 40.0f, 40.0f};
+	if (sys->banks[0][PAD_R].playing) DrawRectangleRounded(recr, 0.3f, 1, ORANGE);
+	else DrawRectangleRounded(recr, 0.3f, 1, WHITE);
+	DrawText("R", 165.0f, 325.0f, 20, BLACK);
 
 	if (!sys || !sampler || !sampler->active_sample)
 		return;
@@ -67,7 +92,7 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 			vertex_spacing + ORIGIN.x;
 		const Vector2 startv = {play_x, ORIGIN.y - WAVE_HEIGHT / 2.0f};
 		const Vector2 endv = {play_x, ORIGIN.y + WAVE_HEIGHT / 2.0f};
-		DrawLineV(startv, endv, RED);
+		DrawLineEx(startv, endv, 2.0f, RED);
 	}
 	if (	s->start_frame >= first_frame_to_draw && 
 		s->start_frame < first_frame_to_draw + frames_to_draw) {
@@ -77,7 +102,7 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 			vertex_spacing + ORIGIN.x;
 		const Vector2 startv = {start_x, ORIGIN.y - WAVE_HEIGHT / 2.0f};
 		const Vector2 endv = {start_x, ORIGIN.y + WAVE_HEIGHT / 2.0f};
-		DrawLineV(startv, endv, BLUE);
+		DrawLineEx(startv, endv, 2.0f, BLUE);
 	}
 	if (	s->end_frame >= first_frame_to_draw && 
 		s->end_frame <= first_frame_to_draw + frames_to_draw) {
@@ -87,7 +112,7 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 			vertex_spacing + ORIGIN.x;
 		const Vector2 startv = {end_x, ORIGIN.y - WAVE_HEIGHT / 2.0f};
 		const Vector2 endv = {end_x, ORIGIN.y + WAVE_HEIGHT / 2.0f};
-		DrawLineV(startv, endv, BLUE);
+		DrawLineEx(startv, endv, 2.0f, BLUE);
 	}
 }
 

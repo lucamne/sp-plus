@@ -8,8 +8,8 @@
 #define FRAME_SIZE 4		// frame size in bytes
 #define NUM_PADS 8
 
-static const int WINDOW_HEIGHT = 450;
-static const int WINDOW_WIDTH = 800;
+static const int WINDOW_HEIGHT = 900;
+static const int WINDOW_WIDTH = 1600;
 static const char* WINDOW_NAME = "SP-PLUS";
 
 // uncomment to turn off assertions
