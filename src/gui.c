@@ -4,70 +4,57 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-static void draw_sample_view(const struct system* sys, const struct sampler* sampler)
+static void draw_sample_window(const struct system* sys, const Vector2* origin)
+{	
+	static const float WIN_WIDTH = 600;
+	static const float WIN_HEIGHT = 300;
+	static const float PAD_WIDTH = 40;
+	static const float PAD_HEIGHT = 40;
+
+	struct sample** banks = sys->banks;
+
+	// window
+	const Rectangle win = { origin->x, origin->y, WIN_WIDTH,  WIN_HEIGHT };
+	DrawRectangleLinesEx(win, 3.0f, WHITE);
+
+	// sample pads
+	const float PAD_Y = origin->y + WIN_HEIGHT + 10;
+	float PAD_X = origin->x;
+
+	const Rectangle padq = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[0][PAD_Q].playing) DrawRectangleRounded(padq, 0.3f, 1, ORANGE);
+	else DrawRectangleRounded(padq, 0.3f, 1, WHITE);
+	DrawText("q", PAD_X + 5, PAD_Y + 5, 20, BLACK);
+
+	PAD_X += PAD_WIDTH + 10;
+	const Rectangle padw = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[0][PAD_W].playing) DrawRectangleRounded(padw, 0.3f, 1, ORANGE);
+	else DrawRectangleRounded(padw, 0.3f, 1, WHITE);
+	DrawText("w", PAD_X + 5, PAD_Y + 5, 20, BLACK);
+
+	PAD_X += PAD_WIDTH + 10;
+	const Rectangle pade = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[0][PAD_E].playing) DrawRectangleRounded(pade, 0.3f, 1, ORANGE);
+	else DrawRectangleRounded(pade, 0.3f, 1, WHITE);
+	DrawText("e", PAD_X + 5, PAD_Y + 5, 20, BLACK);
+
+	PAD_X += PAD_WIDTH + 10;
+	const Rectangle padr = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[0][PAD_R].playing) DrawRectangleRounded(padr, 0.3f, 1, ORANGE);
+	else DrawRectangleRounded(padr, 0.3f, 1, WHITE);
+	DrawText("r", PAD_X + 5, PAD_Y + 5, 20, BLACK);
+}
+
+static void draw_waveform(const struct sampler* sampler, const Vector2* origin)
 {
-	static const int MAX_POINTS = 4000;		// max points to render
-	static const float WAVE_WIDTH = 580.0f;		// width of wave spline 
-	static const float WAVE_HEIGHT = 280.0f;	// max height of wave spline
-	static const Vector2 ORIGIN = {20.0f, 160.0f};	// origin of wave spline
-	static const float THICKNESS = 2.0f;		// wave spline thickness
-	static const Color WAVE_COLOR = WHITE;		// color of wave spline
-
-	if (!sys || !sampler) return;
-
-	// sample box
-	const Rectangle rec = { 10.0f, 10.0f, 600.0f, 300.0f };
-	DrawRectangleLinesEx(rec, 3.0f, WHITE);
-
-	// draw sample pads
-	const Rectangle recq = { 10.0f, 320.0f, 40.0f, 40.0f};
-	if (sys->banks[0][PAD_Q].playing) DrawRectangleRounded(recq, 0.3f, 1, ORANGE);
-	else DrawRectangleRounded(recq, 0.3f, 1, WHITE);
-	DrawText("q", 15.0f, 325.0f, 20, BLACK);
-
-	const Rectangle recw = { 60.0f, 320.0f, 40.0f, 40.0f};
-	if (sys->banks[0][PAD_W].playing) DrawRectangleRounded(recw, 0.3f, 1, ORANGE);
-	else DrawRectangleRounded(recw, 0.3f, 1, WHITE);
-	DrawText("w", 65.0f, 325.0f, 20, BLACK);
-
-	const Rectangle rece = { 110.0f, 320.0f, 40.0f, 40.0f};
-	if (sys->banks[0][PAD_E].playing) DrawRectangleRounded(rece, 0.3f, 1, ORANGE);
-	else DrawRectangleRounded(rece, 0.3f, 1, WHITE);
-	DrawText("e", 115.0f, 325.0f, 20, BLACK);
-
-	const Rectangle recr = { 160.0f, 320.0f, 40.0f, 40.0f};
-	if (sys->banks[0][PAD_R].playing) DrawRectangleRounded(recr, 0.3f, 1, ORANGE);
-	else DrawRectangleRounded(recr, 0.3f, 1, WHITE);
-	DrawText("r", 165.0f, 325.0f, 20, BLACK);
-
-	Vector2 s1 = { 210.0f, 315.0f };
-	Vector2 s2 = { 210.0f, 365.0f };
-	DrawLineEx( s1, s2, 2.0f, WHITE);
+	// waveform constants
+	static const int MAX_POINTS = 4000;			// max points to render
+	static const float WAVE_WIDTH = 580.0f;			// width of wave spline 
+	static const float WAVE_HEIGHT = 280.0f;		// max height of wave spline
 
 	if (!sampler->active_sample) return;
+	const Vector2 wave_origin = {origin->x + 10.0f, origin->y + 150.0f};
 	const struct sample* s = sampler->active_sample;
-
-	// draw playback options
-	// gate
-	DrawText("(g)ate", 220.0f, 320.0f, 20, WHITE);
-	if (s->gate) DrawRectangle(335.0f, 320.0f, 20.0f, 20.0f, WHITE);
-	else DrawRectangleLines(335.0f, 320.0f, 20.0f, 20.0f, WHITE);
-	// reverse
-	DrawText("re(v)erse", 220.0f, 345.0f, 20, WHITE);
-	if (s->reverse) DrawRectangle(335.0f, 345.0f, 20.0f, 20.0f, WHITE);
-	else DrawRectangleLines(335.0f, 345.0f, 20.0f, 20.0f, WHITE);
-
-	s1.x = 365.0f;
-	s1.y = 315.0f;
-	s2.x = 365.0f;
-	s2.y = 365.0f;
-	DrawLineEx( s1, s2, 2.0f, WHITE);
-	// loop
-	DrawText("(l)oop:", 375.0f, 320.0f, 20, WHITE);
-	if (s->loop_mode == OFF) 
-		DrawText("off", 375.0f, 345.0f, 20, WHITE);
-	else if (s->loop_mode == LOOP) DrawText("loop", 375.0f, 345.0f, 20, WHITE);
-	else DrawText("ping-pong", 375.0f, 345.0f, 20, WHITE);
 
 	// calculate zoom parameters
 	const int32_t frames_to_draw = s->num_frames / sampler->zoom;
@@ -93,7 +80,7 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 		num_vertices = frames_to_draw;
 		frame_freq = 1.0f;
 	}
-
+	// generate vertex list from sample data
 	Vector2 vertices[num_vertices];
 	const float vertex_spacing = WAVE_WIDTH / (float) (num_vertices);
 	for (int i = 0; i < num_vertices; i++) {
@@ -102,22 +89,22 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 			(s->data[frame * NUM_CHANNELS] + 
 			 s->data[frame * NUM_CHANNELS + 1]) / 2.0;
 		const float y = 
-			(float) sum * (WAVE_HEIGHT / 2.0f) + ORIGIN.y;
-		const float x = (float) i * vertex_spacing + ORIGIN.x;
+			(float) sum * (WAVE_HEIGHT / 2.0f) + wave_origin.y;
+		const float x = (float) i * vertex_spacing + wave_origin.x;
 		const Vector2 v = {x, y};
 		vertices[i] = v;
 	}
-	DrawSplineLinear(vertices, num_vertices, THICKNESS, WAVE_COLOR);
+	DrawSplineLinear(vertices, num_vertices, 2, WHITE);
 
-	/* Draw Markers */
+	// draw markers
 	if (	s->next_frame >= first_frame_to_draw && 
 		s->next_frame < first_frame_to_draw + frames_to_draw) {
 
 		const float play_x = 
 			((int) (s->next_frame - first_frame_to_draw) / frame_freq) * 
-			vertex_spacing + ORIGIN.x;
-		const Vector2 startv = {play_x, ORIGIN.y - WAVE_HEIGHT / 2.0f};
-		const Vector2 endv = {play_x, ORIGIN.y + WAVE_HEIGHT / 2.0f};
+			vertex_spacing + wave_origin.x;
+		const Vector2 startv = {play_x, wave_origin.y - WAVE_HEIGHT / 2.0f};
+		const Vector2 endv = {play_x, wave_origin.y + WAVE_HEIGHT / 2.0f};
 		DrawLineEx(startv, endv, 2.0f, RED);
 	}
 	if (	s->start_frame >= first_frame_to_draw && 
@@ -125,9 +112,9 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 
 		const float start_x = 
 			((int) (s->start_frame - first_frame_to_draw) / frame_freq) * 
-			vertex_spacing + ORIGIN.x;
-		const Vector2 startv = {start_x, ORIGIN.y - WAVE_HEIGHT / 2.0f};
-		const Vector2 endv = {start_x, ORIGIN.y + WAVE_HEIGHT / 2.0f};
+			vertex_spacing + wave_origin.x;
+		const Vector2 startv = {start_x, wave_origin.y - WAVE_HEIGHT / 2.0f};
+		const Vector2 endv = {start_x, wave_origin.y + WAVE_HEIGHT / 2.0f};
 		DrawLineEx(startv, endv, 2.0f, BLUE);
 	}
 	if (	s->end_frame >= first_frame_to_draw && 
@@ -135,18 +122,61 @@ static void draw_sample_view(const struct system* sys, const struct sampler* sam
 
 		const float end_x = 
 			((int) (s->end_frame - first_frame_to_draw) / frame_freq) * 
-			vertex_spacing + ORIGIN.x;
-		const Vector2 startv = {end_x, ORIGIN.y - WAVE_HEIGHT / 2.0f};
-		const Vector2 endv = {end_x, ORIGIN.y + WAVE_HEIGHT / 2.0f};
+			vertex_spacing + wave_origin.x;
+		const Vector2 startv = {end_x, wave_origin.y - WAVE_HEIGHT / 2.0f};
+		const Vector2 endv = {end_x, wave_origin.y + WAVE_HEIGHT / 2.0f};
 		DrawLineEx(startv, endv, 2.0f, BLUE);
 	}
 }
 
+static void draw_sampler_controls(const struct sampler* sampler, const Vector2* origin)
+{
+	if (!sampler->active_sample) return;
+	const struct sample* s = sampler->active_sample;
+	const float X = origin->x + 200;
+	const float Y = origin->y + 300;
+
+	Vector2 s1 = { X, Y + 5 };
+	Vector2 s2 = { X, Y + 55 };
+	DrawLineEx( s1, s2, 2.0f, WHITE);
+	// gate
+	DrawText("(g)ate", X + 10, Y + 10, 20, WHITE);
+	if (s->gate) DrawRectangle(X + 125, Y + 10, 20.0f, 20.0f, WHITE);
+	else DrawRectangleLines(X + 125, Y + 10, 20.0f, 20.0f, WHITE);
+	// reverse
+	DrawText("re(v)erse", X + 10, Y + 35, 20, WHITE);
+	if (s->reverse) DrawRectangle(X + 125, Y + 35, 20.0f, 20.0f, WHITE);
+	else DrawRectangleLines(X + 125, Y + 35, 20.0f, 20.0f, WHITE);
+
+	s1.x = X + 155;
+	s2.x = X + 155;
+	DrawLineEx( s1, s2, 2.0f, WHITE);
+	// loop
+	DrawText("(l)oop:", X + 165, Y + 10, 20, WHITE);
+	if (s->loop_mode == OFF) 
+		DrawText("off", X + 165, Y + 35, 20, WHITE);
+	else if (s->loop_mode == LOOP) DrawText("loop", X + 165, Y + 35, 20, WHITE);
+	else DrawText("ping-pong", X + 165, Y + 35, 20, WHITE);
+}
+
+static void draw_sampler(
+	const struct system* sys, 
+	const struct sampler* sampler,
+	const Vector2 *origin)
+{
+	if (!sys || !sampler || !origin) return;
+
+	draw_sample_window(sys, origin);
+	draw_waveform(sampler, origin);
+	draw_sampler_controls(sampler, origin);
+}
+
 void draw(const struct system* sys, const struct sampler* sampler)
 {
+	static const Vector2 sampler_origin = { 10, 10 };
 	BeginDrawing();
 	ClearBackground(BLACK);
-	draw_sample_view(sys, sampler);
+	draw_sampler(sys, sampler, &sampler_origin);
 	EndDrawing();
 }
 
