@@ -22,26 +22,34 @@ static void draw_sample_window(const struct system* sys, const Vector2* origin)
 	float PAD_X = origin->x;
 
 	const Rectangle padq = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
-	if (banks[0][PAD_Q].playing) DrawRectangleRounded(padq, 0.3f, 1, ORANGE);
-	else DrawRectangleRounded(padq, 0.3f, 1, WHITE);
+	if (banks[0][PAD_Q].num_frames && banks[0][PAD_Q].playing) 
+		DrawRectangleRounded(padq, 0.3f, 1, ORANGE);
+	else 
+		DrawRectangleRounded(padq, 0.3f, 1, WHITE);
 	DrawText("q", PAD_X + 5, PAD_Y + 5, 20, BLACK);
 
 	PAD_X += PAD_WIDTH + 10;
 	const Rectangle padw = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
-	if (banks[0][PAD_W].playing) DrawRectangleRounded(padw, 0.3f, 1, ORANGE);
-	else DrawRectangleRounded(padw, 0.3f, 1, WHITE);
+	if (banks[0][PAD_W].num_frames && banks[0][PAD_W].playing)
+		DrawRectangleRounded(padw, 0.3f, 1, ORANGE);
+	else 
+		DrawRectangleRounded(padw, 0.3f, 1, WHITE);
 	DrawText("w", PAD_X + 5, PAD_Y + 5, 20, BLACK);
 
 	PAD_X += PAD_WIDTH + 10;
 	const Rectangle pade = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
-	if (banks[0][PAD_E].playing) DrawRectangleRounded(pade, 0.3f, 1, ORANGE);
-	else DrawRectangleRounded(pade, 0.3f, 1, WHITE);
+	if (banks[0][PAD_E].num_frames && banks[0][PAD_E].playing)
+		DrawRectangleRounded(pade, 0.3f, 1, ORANGE);
+	else
+		DrawRectangleRounded(pade, 0.3f, 1, WHITE);
 	DrawText("e", PAD_X + 5, PAD_Y + 5, 20, BLACK);
 
 	PAD_X += PAD_WIDTH + 10;
 	const Rectangle padr = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
-	if (banks[0][PAD_R].playing) DrawRectangleRounded(padr, 0.3f, 1, ORANGE);
-	else DrawRectangleRounded(padr, 0.3f, 1, WHITE);
+	if (banks[0][PAD_R].num_frames && banks[0][PAD_R].playing)
+		DrawRectangleRounded(padr, 0.3f, 1, ORANGE);
+	else
+		DrawRectangleRounded(padr, 0.3f, 1, WHITE);
 	DrawText("r", PAD_X + 5, PAD_Y + 5, 20, BLACK);
 }
 
@@ -133,30 +141,33 @@ static void draw_sampler_controls(const struct sampler* sampler, const Vector2* 
 {
 	if (!sampler->active_sample) return;
 	const struct sample* s = sampler->active_sample;
-	const float X = origin->x + 200;
-	const float Y = origin->y + 300;
+	const float X = origin->x + 600;
+	const float Y = origin->y;
 
-	Vector2 s1 = { X, Y + 5 };
-	Vector2 s2 = { X, Y + 55 };
-	DrawLineEx( s1, s2, 2.0f, WHITE);
 	// gate
-	DrawText("(g)ate", X + 10, Y + 10, 20, WHITE);
+	DrawText("gate", X + 10, Y + 10, 20, WHITE);
 	if (s->gate) DrawRectangle(X + 125, Y + 10, 20.0f, 20.0f, WHITE);
 	else DrawRectangleLines(X + 125, Y + 10, 20.0f, 20.0f, WHITE);
 	// reverse
-	DrawText("re(v)erse", X + 10, Y + 35, 20, WHITE);
+	DrawText("reverse", X + 10, Y + 35, 20, WHITE);
 	if (s->reverse) DrawRectangle(X + 125, Y + 35, 20.0f, 20.0f, WHITE);
 	else DrawRectangleLines(X + 125, Y + 35, 20.0f, 20.0f, WHITE);
-
-	s1.x = X + 155;
-	s2.x = X + 155;
-	DrawLineEx( s1, s2, 2.0f, WHITE);
 	// loop
-	DrawText("(l)oop:", X + 165, Y + 10, 20, WHITE);
+	DrawText("loop:", X + 10, Y + 60, 20, WHITE);
 	if (s->loop_mode == OFF) 
-		DrawText("off", X + 165, Y + 35, 20, WHITE);
-	else if (s->loop_mode == LOOP) DrawText("loop", X + 165, Y + 35, 20, WHITE);
-	else DrawText("ping-pong", X + 165, Y + 35, 20, WHITE);
+		DrawText("off", X + 65, Y + 60, 20, WHITE);
+	else if (s->loop_mode == LOOP) DrawText("loop", X + 65, Y + 60, 20, WHITE);
+	else DrawText("ping-pong", X + 65, Y + 60, 20, WHITE);
+	// attack / release
+	DrawText(TextFormat("attack: %.0fms", frames_to_ms(s->attack)), 
+			X + 10, Y + 85, 20, WHITE);
+	DrawText(TextFormat("release: %.0fms", frames_to_ms(s->release)), 
+			X + 10, Y + 110, 20, WHITE);
+	// pitch / speed
+	DrawText(TextFormat("pitch: %+.0fst", roundf(speed_to_st(fabs(s->speed)))), 
+			X + 10, Y + 135, 20, WHITE);
+	DrawText(TextFormat("speed: %.2fx", fabs(s->speed)), 
+			X + 10, Y + 160, 20, WHITE);
 }
 
 static void draw_sampler(

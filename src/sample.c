@@ -81,7 +81,7 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	// watch for memory leak with data
 	s->data = NULL;
 	s->playing = false;
-	s->frame_increment = 100;
+	s->speed = 1.0f;
 	s->loop_mode = OFF;
 	s->gate_closed = false;
 
@@ -196,7 +196,7 @@ static int increment_frame(struct sample* s)
 {
 	if (!s) return 1;
 	// round up or down if fractional difference is very small
-	double next_frame = s->next_frame + s->frame_increment / 100.0; 
+	double next_frame = s->next_frame + s->speed; 
 	const double frac = next_frame - (int) next_frame;
 	if (fabs(frac) < 0.001)
 		next_frame = (int) next_frame;
@@ -212,7 +212,7 @@ static int increment_frame(struct sample* s)
 	if (next_frame > s->end_frame - 1 ) {
 		if (s->loop_mode == PING_PONG) { 
 			s->next_frame = s->end_frame - 1;
-			s->frame_increment *= -1;
+			s->speed *= -1;
 		} else if (s->loop_mode == LOOP) {
 			s->next_frame = s->start_frame;
 		} else {
@@ -222,7 +222,7 @@ static int increment_frame(struct sample* s)
 	} else if (next_frame < s->start_frame) {
 		if (s->loop_mode == PING_PONG) {
 			s->next_frame = s->start_frame;
-			s->frame_increment *= -1;
+			s->speed *= -1;
 		} else if (s->loop_mode == LOOP) {
 			s->next_frame = s->end_frame - 1;
 		} else {
@@ -282,25 +282,29 @@ int kill_sample(struct sample* s)
 	s->gate_closed = false;
 	if (s->reverse)	{
 		s->next_frame = s->end_frame - 1;
-		if (s->frame_increment > 0) s->frame_increment *= -1;
+		if (s->speed > 0) s->speed *= -1;
 	} else {
 		s->next_frame = s->start_frame;
-		if (s->frame_increment < 0) s->frame_increment *= -1;
+		if (s->speed < 0) s->speed *= -1;
 	}
 	return 0;
 }
 
-int set_attack(struct sample* s, int32_t frames)
+int set_attack(struct sample* s, float ms)
 {
 	if (!s) return 1;
+	if (ms < 0) return 1;
+	const int32_t frames = ms_to_frames(ms);
 	if (s->end_frame - s->start_frame - s->release < frames) return 1;
 	s->attack = frames;
 	return 0;
 }
 
-int set_release(struct sample* s, int32_t frames)
+int set_release(struct sample* s, float ms)
 {
 	if (!s) return 1;
+	if (ms < 0) return 1;
+	const int32_t frames = ms_to_frames(ms);
 	if (s->end_frame - s->start_frame - s->attack < frames) return 1;
 	s->release = frames;
 	return 0;
@@ -314,7 +318,7 @@ int close_gate(struct sample* s)
 	s->gate_closed = true;
 	s->gate_close_gain = get_envelope_gain(s);
 	// if sample is playing forward compare to release
-	if (s->frame_increment > 0) {
+	if (s->speed > 0) {
 		s->gate_release = s->release;
 		if (s->end_frame - s->next_frame < s->release)
 			s->gate_release_cnt = s->release - (s->end_frame - s->next_frame);
@@ -327,13 +331,12 @@ int close_gate(struct sample* s)
 	return 0;
 }
 
-void set_frame_increment(struct sample* s, const int inc)
+void set_speed(struct sample* s, const float speed)
 {
-	static const float MAX_INC = 200;
-	static const float MIN_INC = 1;
+	static const float MAX_SPEED = 4.1;
 
-	if (inc < MIN_INC || inc > MAX_INC) return;
+	if (speed <= 0.01 || speed > MAX_SPEED) return;
 
-	const char sign = s->frame_increment > 0 ? 1 : -1;
-	s->frame_increment = sign * inc;
+	const char sign = s->speed > 0 ? 1 : -1;
+	s->speed = sign * speed;
 }

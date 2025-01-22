@@ -9,61 +9,83 @@
 #define WAV3 "../test/drums/R-8solid k.wav"
 #define WAV4 "../test/drums/R-8dry clap.wav"
 
+// returns true once after sample in gate mode is released
+static bool is_gate_released(struct sample* s, KeyboardKey k)
+{
+	return s->gate && s->playing && !s->gate_closed && IsKeyUp(k);
+}
+
 void update_sampler(struct system* sys, struct sampler* sampler)
 {
 	struct sample** banks = sys->banks;
 	struct sample** active_sample = &sampler->active_sample;
 
+	const bool alt = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+
 	// trigger samples
 	if (IsKeyPressed(KEY_Q)) {
 		*active_sample = &banks[0][PAD_Q];
 		trigger_sample(&banks[0][PAD_Q]);
-	// check for gate release
-	} else if (	banks[0][PAD_Q].gate && 
-			banks[0][PAD_Q].playing && 
-			!banks[0][PAD_Q].gate_closed && 
-			IsKeyUp(KEY_Q)) {
+		// check for gate release
+	} else if (is_gate_released(&banks[0][PAD_Q], KEY_Q)){
 		close_gate(&banks[0][PAD_Q]);
 	}
 	if (IsKeyPressed(KEY_W)) {
 		*active_sample = &banks[0][PAD_W];
 		trigger_sample(&banks[0][PAD_W]);
-	// check for gate release
-	} else if (	banks[0][PAD_W].gate && 
-			banks[0][PAD_W].playing && 
-			!banks[0][PAD_W].gate_closed && 
-			IsKeyUp(KEY_W)) {
+		// check for gate release
+	} else if (is_gate_released(&banks[0][PAD_W], PAD_W)){
 		close_gate(&banks[0][PAD_W]);
 	}
-	// set stretch
-	if (IsKeyPressed(KEY_S)) {
-		const int f = abs((*active_sample)->frame_increment);
-		set_frame_increment(*active_sample, f + 10);
+	if (IsKeyPressed(KEY_E)) {
+		*active_sample = &banks[0][PAD_E];
+		trigger_sample(&banks[0][PAD_E]);
+		// check for gate release
+	} else if (is_gate_released(&banks[0][PAD_E], PAD_E)){
+		close_gate(&banks[0][PAD_E]);
 	}
-	if (IsKeyPressed(KEY_A)) {
-		const int f = abs((*active_sample)->frame_increment);
-		set_frame_increment(*active_sample, f - 10);
+	if (IsKeyPressed(KEY_R)) {
+		*active_sample = &banks[0][PAD_R];
+		trigger_sample(&banks[0][PAD_R]);
+		// check for gate release
+	} else if (is_gate_released(&banks[0][PAD_R], PAD_R)){
+		close_gate(&banks[0][PAD_R]);
 	}
-	// move markers
+	// playback speed / pitch
+	if (IsKeyPressed(KEY_O)) {
+		const float st = speed_to_st(fabs((*active_sample)->speed));
+		if (alt) set_speed(*active_sample, st_to_speed(st - 1));
+		else set_speed(*active_sample, st_to_speed(st + 1));
+	}
+	// move start/end
 	if (IsKeyDown(KEY_U)) {
-		const int32_t f = (*active_sample)->start_frame - 1000 / sampler->zoom;
+		int32_t f; 
+		if (alt)
+			f = (*active_sample)->start_frame - 750 / sampler->zoom; 
+		else
+			f = (*active_sample)->start_frame + 750 / sampler->zoom; 
 		set_start(*active_sample, f);
 		sampler->zoom_focus = START;
 	}
 	if (IsKeyDown(KEY_I)) {
-		const int32_t f = (*active_sample)->start_frame + 1000 / sampler->zoom;
-		set_start(*active_sample, f);
-		sampler->zoom_focus = START;
-	}
-	if (IsKeyDown(KEY_J)) {
-		const int32_t f = (*active_sample)->end_frame - 1000 / sampler->zoom;
+		int32_t f; 
+		if (alt)
+			f = (*active_sample)->end_frame - 750 / sampler->zoom; 
+		else
+			f = (*active_sample)->end_frame + 750 / sampler->zoom; 
 		set_end(*active_sample, f);
 		sampler->zoom_focus = END;
+	}
+	// set envelope
+	if (IsKeyDown(KEY_J)) {
+		const float ms = frames_to_ms((*active_sample)->attack);
+		if (alt) set_attack(*active_sample, ms - 1);
+		else set_attack(*active_sample, ms + 1);
 	}
 	if (IsKeyDown(KEY_K)) {
-		const int32_t f = (*active_sample)->end_frame + 1000 / sampler->zoom;
-		set_end(*active_sample, f);
-		sampler->zoom_focus = END;
+		const float ms = frames_to_ms((*active_sample)->release);
+		if (alt) set_release(*active_sample, ms - 1);
+		else set_release(*active_sample, ms + 1);
 	}
 	// set playback modes
 	if (IsKeyPressed(KEY_G)) {
@@ -71,7 +93,7 @@ void update_sampler(struct system* sys, struct sampler* sampler)
 	}
 	if (IsKeyPressed(KEY_V)) {
 		(*active_sample)->reverse = !(*active_sample)->reverse;
-		(*active_sample)->frame_increment *= -1.0;
+		(*active_sample)->speed *= -1.0;
 	}
 	if (IsKeyPressed(KEY_L)) {
 		if ((*active_sample)->loop_mode == PING_PONG)
@@ -130,8 +152,6 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Error loading %s\n", WAV3);
 		return 0;
 	}
-	set_attack(&sys.banks[0][0], 10000);
-	set_release(&sys.banks[0][0], 10000);
 	if (load_wav_into_sample(&sys.banks[0][1], WAV4)) {
 		fprintf(stderr, "Error loading %s\n", WAV4);
 		return 0;
@@ -145,6 +165,7 @@ int main(int argc, char** argv)
 	// attach aux busses to master bus
 	add_bus_in(&sys.master, &sb1);
 	add_bus_in(&sys.master, &sb2);
+	sampler.active_sample = &sys.banks[0][0];
 
 	while(!WindowShouldClose()) {
 		// update

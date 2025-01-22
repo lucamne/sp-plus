@@ -2,6 +2,7 @@
 #define SIGNAL_CHAIN_H
 
 #include "audio_backend.h"
+#include "defs.h"
 #include "raylib.h"
 
 #include <alsa/asoundlib.h>
@@ -26,8 +27,7 @@ struct sample {
 
 	int frame_size;		// size in bytes
 	int32_t num_frames;
-	int frame_increment;	// amnt * 100 to increment by in frames after processing
-				// represented as int to avoid some rounding errors
+	float speed;		// playback speed
 	int rate;		// sample_rate in Hz
 
 	bool gate;		// trigger sample in gate mode
@@ -84,10 +84,10 @@ int trigger_sample(struct sample* s);
 int set_start(struct sample* s, int32_t frame);
 // set end_frame
 int set_end(struct sample* s, int32_t frame);
-
-int set_attack(struct sample* s, int32_t frame);
-
-int set_release(struct sample* s, int32_t frame);
+// set attack in ms
+int set_attack(struct sample* s, float ms);
+// set release in ms
+int set_release(struct sample* s, float ms);
 // controls behaviour of sample in gate trigger mode when gate is released
 int close_gate(struct sample* s);
 // process next frame into out and increment s->next_frame after
@@ -95,7 +95,7 @@ int process_next_frame(double out[], struct sample* s);
 // stops playback and sets next_frame to correct position based on playback options
 int kill_sample(struct sample* s);
 // [1, 200], 100 is normal
-void set_frame_increment(struct sample* s, const int inc);
+void set_speed(struct sample* s, const float speed);
 
 //------------------------------------------------------------------------------
 // Bus Control Functions: bus.c
@@ -121,9 +121,13 @@ int open_alsa_dev(struct alsa_dev* a_dev, int rate, int num_c);
 int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master);
 
 //------------------------------------------------------------------------------
-// Utility DSP function
+// Utility 
 // -----------------------------------------------------------------------------
 
-static double gain_to_dbfs(double d) { return 20.0 * log10(fabs(d)); }
-static double dbfs_to_gain(double d) { return pow(10.0, d / 20.0); }
+static double gain_to_dbfs(const double d) { return 20.0 * log10(fabs(d)); }
+static double dbfs_to_gain(const double d) { return pow(10.0, d / 20.0); }
+static float frames_to_ms(const int32_t f) { return 1000.0f * f / SAMPLE_RATE; }
+static int32_t ms_to_frames(const float m) { return m * SAMPLE_RATE / 1000.0f; }
+static float speed_to_st(const float speed) { return -12 * log2f(1.0f / speed); }
+static float st_to_speed(const float st) { return powf(2.0f, st / 12.0f); }
 #endif
