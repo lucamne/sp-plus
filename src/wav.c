@@ -109,9 +109,16 @@ int load_wav(struct wav_file* wav, const char* path)
 		wav_read_error(f);
 		return 1;
 	}
-	if (buffer[0] ^ 0x61746164) { 		// check for 'data' tag
-		wav_read_error(f);
-		return 1;
+	// seek to data chunk
+	while (buffer[0] ^ 0x61746164) { 		
+		if (fseek(f, buffer[1], SEEK_CUR)) {
+			wav_read_error(f);
+			return 1;
+		}
+		if (fread(buffer, sizeof(*buffer), 2, f) != 2) {
+			wav_read_error(f);
+			return 1;
+		}
 	}
 	wav->data_size = buffer[1];
 	wav->num_samples = wav->data_size / wav->frame_size;

@@ -4,7 +4,7 @@
 #include "audio_backend.h"
 #include "raylib.h"
 
-#define WAV1 "../test/drums/R-8ride1.wav"
+#define WAV1 "../test/GREEN.wav"
 #define WAV2 "../test/drums/R-8can1.wav"
 #define WAV3 "../test/drums/R-8solid k.wav"
 #define WAV4 "../test/drums/R-8dry clap.wav"
@@ -24,30 +24,26 @@ void update_sampler(struct system* sys, struct sampler* sampler)
 
 	// trigger samples
 	if (IsKeyPressed(KEY_Q)) {
+		if (!alt) trigger_sample(&banks[0][PAD_Q]);
 		*active_sample = &banks[0][PAD_Q];
-		trigger_sample(&banks[0][PAD_Q]);
-		// check for gate release
 	} else if (is_gate_released(&banks[0][PAD_Q]) && IsKeyUp(KEY_Q)){
 		close_gate(&banks[0][PAD_Q]);
 	}
 	if (IsKeyPressed(KEY_W)) {
+		if (!alt) trigger_sample(&banks[0][PAD_W]);
 		*active_sample = &banks[0][PAD_W];
-		trigger_sample(&banks[0][PAD_W]);
-		// check for gate release
 	} else if (is_gate_released(&banks[0][PAD_W]) && IsKeyUp(KEY_W)){
 		close_gate(&banks[0][PAD_W]);
 	}
 	if (IsKeyPressed(KEY_E)) {
+		if (!alt) trigger_sample(&banks[0][PAD_E]);
 		*active_sample = &banks[0][PAD_E];
-		trigger_sample(&banks[0][PAD_E]);
-		// check for gate release
 	} else if (is_gate_released(&banks[0][PAD_E]) && IsKeyUp(KEY_E)){
 		close_gate(&banks[0][PAD_E]);
 	}
 	if (IsKeyPressed(KEY_R)) {
+		if (!alt) trigger_sample(&banks[0][PAD_R]);
 		*active_sample = &banks[0][PAD_R];
-		trigger_sample(&banks[0][PAD_R]);
-		// check for gate release
 	} else if (is_gate_released(&banks[0][PAD_R]) && IsKeyUp(KEY_R)){
 		close_gate(&banks[0][PAD_R]);
 	}
@@ -110,7 +106,7 @@ void update_sampler(struct system* sys, struct sampler* sampler)
 		}
 	}
 	if (IsKeyPressed(KEY_EQUAL)) {
-		sampler->zoom *= 2;
+		if (sampler->zoom <= 256) sampler->zoom *= 2;
 	}
 	if (IsKeyPressed(KEY_MINUS)) {
 		sampler->zoom /= 2;
@@ -156,15 +152,22 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Error loading %s\n", WAV4);
 		return 0;
 	}
+	if (load_wav_into_sample(&sys.banks[0][2], WAV1)) {
+		fprintf(stderr, "Error loading %s\n", WAV1);
+		return 0;
+	}
 	// create some aux busses
 	struct bus sb1 = {0};
 	struct bus sb2 = {0};
+	struct bus sb3 = {0};
 	// attach samples to input
 	sb1.sample_in = &sys.banks[0][0];
 	sb2.sample_in = &sys.banks[0][1];
+	sb3.sample_in = &sys.banks[0][2];
 	// attach aux busses to master bus
 	add_bus_in(&sys.master, &sb1);
 	add_bus_in(&sys.master, &sb2);
+	add_bus_in(&sys.master, &sb3);
 	sampler.active_sample = &sys.banks[0][0];
 
 	while(!WindowShouldClose()) {

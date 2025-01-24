@@ -139,6 +139,9 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	s->next_frame = 0;
 	s->start_frame = 0;
 	s->end_frame = s->num_frames;
+	s->path = malloc(sizeof(char) * (strlen(path) + 1));
+	strcpy(s->path, path);
+
 	free(w.data);
 
 	print_sample(s);

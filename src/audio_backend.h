@@ -19,6 +19,7 @@ typedef enum {OFF = 0, LOOP, PING_PONG} LOOP_MODE;
 // container for audio data
 // the source of all playback is a sample
 struct sample {
+	char* path;
 	double* data;		// 16_bit float data
 	int32_t start_frame;	// start playback on this frame
 	int32_t end_frame;	// end when this frame is reached 

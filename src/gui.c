@@ -11,15 +11,18 @@ static void draw_sample_window(const struct system* sys, const Vector2* origin)
 	static const float PAD_WIDTH = 40;
 	static const float PAD_HEIGHT = 40;
 
+	const float X = origin->x;
+	const float Y = origin->y + 25;
+
 	struct sample** banks = sys->banks;
 
-	// window
-	const Rectangle win = { origin->x, origin->y, WIN_WIDTH,  WIN_HEIGHT };
+	// waveform window
+	const Rectangle win = { X, Y , WIN_WIDTH,  WIN_HEIGHT };
 	DrawRectangleLinesEx(win, 3.0f, WHITE);
 
 	// sample pads
-	const float PAD_Y = origin->y + WIN_HEIGHT + 10;
-	float PAD_X = origin->x;
+	const float PAD_Y = Y + WIN_HEIGHT + 10;
+	float PAD_X = X;
 
 	const Rectangle padq = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
 	if (banks[0][PAD_Q].num_frames && banks[0][PAD_Q].playing) 
@@ -61,7 +64,7 @@ static void draw_waveform(const struct sampler* sampler, const Vector2* origin)
 	static const float WAVE_HEIGHT = 280.0f;		// max height of wave spline
 
 	if (!sampler->active_sample) return;
-	const Vector2 wave_origin = {origin->x + 10.0f, origin->y + 150.0f};
+	const Vector2 wave_origin = {origin->x + 10, origin->y + 175};
 	const struct sample* s = sampler->active_sample;
 
 	// calculate zoom parameters
@@ -142,7 +145,7 @@ static void draw_sampler_controls(const struct sampler* sampler, const Vector2* 
 	if (!sampler->active_sample) return;
 	const struct sample* s = sampler->active_sample;
 	const float X = origin->x + 600;
-	const float Y = origin->y;
+	const float Y = origin->y + 25;
 
 	// gate
 	DrawText("gate", X + 10, Y + 10, 20, WHITE);
@@ -168,6 +171,25 @@ static void draw_sampler_controls(const struct sampler* sampler, const Vector2* 
 			X + 10, Y + 135, 20, WHITE);
 	DrawText(TextFormat("speed: %.2fx", fabs(s->speed)), 
 			X + 10, Y + 160, 20, WHITE);
+	// zoom
+	DrawText(TextFormat("zoom: %dx", sampler->zoom), X + 10, Y + 185, 20, WHITE);
+	// sample length
+	int sec = s->num_frames / SAMPLE_RATE;
+	int min = sec / 60;
+	sec %= 60;
+	DrawText(TextFormat("Total Length: %01d:%02d", min, sec), X + 10, Y + 210, 20, WHITE);
+	DrawText(TextFormat("Active Length: %01d:%02d", min, sec), X + 10, Y + 235, 20, WHITE);
+	DrawText(TextFormat("Playback: %01d:%02d", min, sec), X + 10, Y + 260, 20, WHITE);
+}
+
+static void draw_sample_info(const struct sampler *sampler, const Vector2 *origin)
+{
+	const float X = origin->x + 5;
+	const float Y = origin->y + 5;
+
+	const struct sample *s = sampler->active_sample;
+
+	DrawText(TextFormat("Name: %s", s->path), X, Y, 20, WHITE);
 }
 
 static void draw_sampler(
@@ -177,6 +199,7 @@ static void draw_sampler(
 {
 	if (!sys || !sampler || !origin) return;
 
+	draw_sample_info(sampler, origin);
 	draw_sample_window(sys, origin);
 	draw_waveform(sampler, origin);
 	draw_sampler_controls(sampler, origin);
