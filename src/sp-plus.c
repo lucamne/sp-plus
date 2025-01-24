@@ -10,9 +10,9 @@
 #define WAV4 "../test/drums/R-8dry clap.wav"
 
 // returns true once after sample in gate mode is released
-static bool is_gate_released(struct sample* s, KeyboardKey k)
+static bool is_gate_released(struct sample* s)
 {
-	return s->gate && s->playing && !s->gate_closed && IsKeyUp(k);
+	return s->gate && s->playing && !s->gate_closed; 
 }
 
 void update_sampler(struct system* sys, struct sampler* sampler)
@@ -27,28 +27,28 @@ void update_sampler(struct system* sys, struct sampler* sampler)
 		*active_sample = &banks[0][PAD_Q];
 		trigger_sample(&banks[0][PAD_Q]);
 		// check for gate release
-	} else if (is_gate_released(&banks[0][PAD_Q], KEY_Q)){
+	} else if (is_gate_released(&banks[0][PAD_Q]) && IsKeyUp(KEY_Q)){
 		close_gate(&banks[0][PAD_Q]);
 	}
 	if (IsKeyPressed(KEY_W)) {
 		*active_sample = &banks[0][PAD_W];
 		trigger_sample(&banks[0][PAD_W]);
 		// check for gate release
-	} else if (is_gate_released(&banks[0][PAD_W], PAD_W)){
+	} else if (is_gate_released(&banks[0][PAD_W]) && IsKeyUp(KEY_W)){
 		close_gate(&banks[0][PAD_W]);
 	}
 	if (IsKeyPressed(KEY_E)) {
 		*active_sample = &banks[0][PAD_E];
 		trigger_sample(&banks[0][PAD_E]);
 		// check for gate release
-	} else if (is_gate_released(&banks[0][PAD_E], PAD_E)){
+	} else if (is_gate_released(&banks[0][PAD_E]) && IsKeyUp(KEY_E)){
 		close_gate(&banks[0][PAD_E]);
 	}
 	if (IsKeyPressed(KEY_R)) {
 		*active_sample = &banks[0][PAD_R];
 		trigger_sample(&banks[0][PAD_R]);
 		// check for gate release
-	} else if (is_gate_released(&banks[0][PAD_R], PAD_R)){
+	} else if (is_gate_released(&banks[0][PAD_R]) && IsKeyUp(KEY_R)){
 		close_gate(&banks[0][PAD_R]);
 	}
 	// playback speed / pitch

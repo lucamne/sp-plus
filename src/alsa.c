@@ -418,7 +418,7 @@ int open_alsa_dev(struct alsa_dev* a_dev, int rate, int num_c)
 	snd_pcm_hw_params_alloca(&hwparams);
 	snd_pcm_sw_params_alloca(&swparams);
 
-	a_dev->dev_id = "plughw:0,0";
+	a_dev->dev_id = "plughw:1,0";
 	a_dev->num_channels = num_c;
 	a_dev->rate = rate;
 	// init pcm handle
