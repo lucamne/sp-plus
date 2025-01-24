@@ -178,7 +178,13 @@ static void draw_sampler_controls(const struct sampler* sampler, const Vector2* 
 	int min = sec / 60;
 	sec %= 60;
 	DrawText(TextFormat("Total Length: %01d:%02d", min, sec), X + 10, Y + 210, 20, WHITE);
+	sec = (s->end_frame - s->start_frame) / SAMPLE_RATE;
+	min = sec / 60;
+	sec %= 60;
 	DrawText(TextFormat("Active Length: %01d:%02d", min, sec), X + 10, Y + 235, 20, WHITE);
+	sec = s->next_frame / SAMPLE_RATE;
+	min = sec / 60;
+	sec %= 60;
 	DrawText(TextFormat("Playback: %01d:%02d", min, sec), X + 10, Y + 260, 20, WHITE);
 }
 
