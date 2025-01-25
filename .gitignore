@@ -1,3 +1,4 @@
 *.o
 *.a
 sp-plus
+../sp-plus

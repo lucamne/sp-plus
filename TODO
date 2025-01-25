@@ -1,7 +1,10 @@
 SAMPLER
 ---------------------------------
-Add sample info screen
-Add grid + snapping
+grid:
+	add auto grid selection
+	add snapping
+	add grid ui
+	add tempo ui
 Rethink keyboard input
 implement delay then repeat controls
 Reasses UI layout

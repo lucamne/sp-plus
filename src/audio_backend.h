@@ -1,5 +1,5 @@
-#ifndef SIGNAL_CHAIN_H
-#define SIGNAL_CHAIN_H
+#ifndef AUDIO_BACKEND_H
+#define AUDIO_BACKEND_H
 
 #include "audio_backend.h"
 #include "defs.h"
@@ -15,7 +15,7 @@
  * Luca Negris - 01/2025
  */
 
-typedef enum {OFF = 0, LOOP, PING_PONG} LOOP_MODE;
+typedef enum LoopMode {LOOP_OFF = 0, LOOP, PING_PONG} LoopMode;
 // container for audio data
 // the source of all playback is a sample
 struct sample {
@@ -33,8 +33,10 @@ struct sample {
 
 	bool gate;		// trigger sample in gate mode
 	bool playing;		// is sample currently playing
-	LOOP_MODE loop_mode;
+	LoopMode loop_mode;
 	bool reverse;		// is sample playing from start to end
+
+	int tempo;		// quarter notes per min 
 
 	int32_t attack;		// attack in frames
 	int32_t release;	// release in frames

@@ -97,7 +97,7 @@ void update_sampler(struct system* sys, struct sampler* sampler)
 	}
 	if (IsKeyPressed(KEY_L)) {
 		if ((*active_sample)->loop_mode == PING_PONG)
-			(*active_sample)->loop_mode = OFF;
+			(*active_sample)->loop_mode = LOOP_OFF;
 		else
 			(*active_sample)->loop_mode += 1;
 	}
@@ -125,7 +125,7 @@ int main(int argc, char** argv)
 	struct bus master = {0};
 	sys.master = master;
 	// init sampler
-	struct sampler sampler = { NULL, 1, 0, 3000 };
+	struct sampler sampler = { NULL, 1, 0, 3000, 2, 1, AUTO};
 
 	// init audio_playback
 	struct alsa_dev a_dev = {0};

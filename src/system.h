@@ -14,13 +14,18 @@ struct system {
 };
 
 enum { PAD_Q = 0, PAD_W, PAD_E, PAD_R };
-typedef enum { PLAY, START, END } Marker;
+typedef enum Marker { PLAY, START, END } Marker;
+typedef enum GridMode { GRID_OFF = 0, AUTO, MANUAL} GridMode;
 // holds data needed by sampler module
 struct sampler {
 	struct sample* active_sample;	// current sample to display
 	int zoom;			// wave viewer zoom
 	Marker zoom_focus;		// focal point of zoom
 	int max_vert;			// max vertices to render in wave viewer
+	// grid lines stuff
+	int subdiv_top;			// grid subdivision e.g. 2/1, 1/1, 1/2
+	int subdiv_bot;		
+	GridMode grid_mode;
 };
 
 void draw(const struct system* sys, const struct sampler* sampler);

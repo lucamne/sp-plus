@@ -56,13 +56,14 @@ static void draw_sample_window(const struct system* sys, const Vector2* origin)
 	DrawText("r", PAD_X + 5, PAD_Y + 5, 20, BLACK);
 }
 
+
 static void draw_waveform(const struct sampler* sampler, const Vector2* origin)
 {
 	// waveform constants
 	static const float WAVE_WIDTH = 580.0f;			// width of wave spline 
 	static const float WAVE_HEIGHT = 280.0f;		// max height of wave spline
 
-	if (!sampler->active_sample) return;
+	if (!sampler->active_sample || !origin) return;
 	const Vector2 wave_origin = {origin->x + 10, origin->y + 175};
 	const struct sample* s = sampler->active_sample;
 
@@ -80,7 +81,7 @@ static void draw_waveform(const struct sampler* sampler, const Vector2* origin)
 	else
 		first_frame_to_draw = focused_frame - frames_to_draw / 2;
 
-	// not all frames will be rendered at once
+	// calculate vertices to render and frames per vertex
 	int num_vertices;
 	float frame_freq;
 	if (frames_to_draw > sampler->max_vert) { 
@@ -90,9 +91,33 @@ static void draw_waveform(const struct sampler* sampler, const Vector2* origin)
 		num_vertices = frames_to_draw;
 		frame_freq = 1.0f;
 	}
+	const float vertex_spacing = WAVE_WIDTH / (float) (num_vertices);
+
+	// calculate gridline spacing
+	// min/beat * sec/min * beat/measure * measure/gridline * frames/sec
+	if (sampler->grid_mode) {
+		const int div_top = sampler->subdiv_top;
+		const int div_bot = sampler->subdiv_bot;
+		const int frames_per_gridline = 
+			1.0 / s->tempo * 60 * 4 * div_top / div_bot * SAMPLE_RATE;
+		// draw gridlines
+		for (int32_t i = 0; i < s->num_frames; i += frames_per_gridline)
+		{
+			if (i < first_frame_to_draw) 
+				continue;
+			if (i >= first_frame_to_draw + num_vertices * (int) frame_freq)
+				break;
+			const float x = 
+				((i - first_frame_to_draw) / frame_freq) * 
+				vertex_spacing + wave_origin.x;
+			const Vector2 startv = {x, wave_origin.y - WAVE_HEIGHT / 2.0f};
+			const Vector2 endv = {x, wave_origin.y + WAVE_HEIGHT / 2.0f};
+			DrawLineEx(startv, endv, 1.0f, LIGHTGRAY);
+		}
+	}
+
 	// generate vertex list from sample data
 	Vector2 vertices[num_vertices];
-	const float vertex_spacing = WAVE_WIDTH / (float) (num_vertices);
 	for (int i = 0; i < num_vertices; i++) {
 		const int32_t frame = first_frame_to_draw + i * (int) frame_freq;
 		const double sum = 
@@ -108,7 +133,7 @@ static void draw_waveform(const struct sampler* sampler, const Vector2* origin)
 
 	// draw markers
 	if (	s->next_frame >= first_frame_to_draw && 
-		s->next_frame < first_frame_to_draw + frames_to_draw) {
+			s->next_frame < first_frame_to_draw + frames_to_draw) {
 
 		const float play_x = 
 			((int) (s->next_frame - first_frame_to_draw) / frame_freq) * 
@@ -118,7 +143,7 @@ static void draw_waveform(const struct sampler* sampler, const Vector2* origin)
 		DrawLineEx(startv, endv, 2.0f, RED);
 	}
 	if (	s->start_frame >= first_frame_to_draw && 
-		s->start_frame < first_frame_to_draw + frames_to_draw) {
+			s->start_frame < first_frame_to_draw + frames_to_draw) {
 
 		const float start_x = 
 			((int) (s->start_frame - first_frame_to_draw) / frame_freq) * 
@@ -128,7 +153,7 @@ static void draw_waveform(const struct sampler* sampler, const Vector2* origin)
 		DrawLineEx(startv, endv, 2.0f, BLUE);
 	}
 	if (	s->end_frame >= first_frame_to_draw && 
-		s->end_frame <= first_frame_to_draw + frames_to_draw) {
+			s->end_frame <= first_frame_to_draw + frames_to_draw) {
 
 		const float end_x = 
 			((int) (s->end_frame - first_frame_to_draw) / frame_freq) * 
@@ -156,7 +181,7 @@ static void draw_sampler_controls(const struct sampler* sampler, const Vector2* 
 	else DrawRectangleLines(X + 125, Y + 35, 20.0f, 20.0f, WHITE);
 	// loop
 	DrawText("loop:", X + 10, Y + 60, 20, WHITE);
-	if (s->loop_mode == OFF) 
+	if (s->loop_mode == LOOP_OFF) 
 		DrawText("off", X + 65, Y + 60, 20, WHITE);
 	else if (s->loop_mode == LOOP) DrawText("loop", X + 65, Y + 60, 20, WHITE);
 	else DrawText("ping-pong", X + 65, Y + 60, 20, WHITE);
@@ -172,19 +197,21 @@ static void draw_sampler_controls(const struct sampler* sampler, const Vector2* 
 			X + 10, Y + 160, 20, WHITE);
 	// zoom
 	DrawText(TextFormat("zoom: %dx", sampler->zoom), X + 10, Y + 185, 20, WHITE);
-	// sample length
-	int sec = s->num_frames / SAMPLE_RATE;
+	// sample time
+	int sec = s->num_frames / SAMPLE_RATE / s->speed;
 	int min = sec / 60;
 	sec %= 60;
 	DrawText(TextFormat("Total Length: %01d:%02d", min, sec), X + 10, Y + 210, 20, WHITE);
-	sec = (s->end_frame - s->start_frame) / SAMPLE_RATE;
+	sec = (s->end_frame - s->start_frame) / SAMPLE_RATE / s->speed;
 	min = sec / 60;
 	sec %= 60;
 	DrawText(TextFormat("Active Length: %01d:%02d", min, sec), X + 10, Y + 235, 20, WHITE);
-	sec = s->next_frame / SAMPLE_RATE;
+	sec = s->next_frame / SAMPLE_RATE / s->speed;
 	min = sec / 60;
 	sec %= 60;
 	DrawText(TextFormat("Playback: %01d:%02d", min, sec), X + 10, Y + 260, 20, WHITE);
+	// tempo
+	DrawText(TextFormat("Tempo: %d", s->tempo), X + 10, Y + 285, 20, WHITE);
 }
 
 static void draw_sample_info(const struct sampler *sampler, const Vector2 *origin)
@@ -198,9 +225,9 @@ static void draw_sample_info(const struct sampler *sampler, const Vector2 *origi
 }
 
 static void draw_sampler(
-	const struct system* sys, 
-	const struct sampler* sampler,
-	const Vector2 *origin)
+		const struct system* sys, 
+		const struct sampler* sampler,
+		const Vector2 *origin)
 {
 	if (!sys || !sampler || !origin) return;
 
