@@ -56,19 +56,23 @@ void update_sampler(struct system* sys, struct sampler* sampler)
 	// move start/end
 	if (IsKeyDown(KEY_U)) {
 		int32_t f; 
+		int32_t inc = (float) (*active_sample)->num_frames / sampler->zoom / 100;
+		if (inc == 0) inc = 1;
 		if (alt)
-			f = (*active_sample)->start_frame - 750 / sampler->zoom; 
+			f = (*active_sample)->start_frame - inc; 
 		else
-			f = (*active_sample)->start_frame + 750 / sampler->zoom; 
+			f = (*active_sample)->start_frame + inc;
 		set_start(*active_sample, f);
 		sampler->zoom_focus = START;
 	}
 	if (IsKeyDown(KEY_I)) {
 		int32_t f; 
+		int32_t inc = (float) (*active_sample)->num_frames / sampler->zoom / 100;
+		if (inc == 0) inc = 1;
 		if (alt)
-			f = (*active_sample)->end_frame - 750 / sampler->zoom; 
+			f = (*active_sample)->end_frame - inc; 
 		else
-			f = (*active_sample)->end_frame + 750 / sampler->zoom; 
+			f = (*active_sample)->end_frame + inc;
 		set_end(*active_sample, f);
 		sampler->zoom_focus = END;
 	}
@@ -121,8 +125,7 @@ int main(int argc, char** argv)
 	struct bus master = {0};
 	sys.master = master;
 	// init sampler
-	struct sampler sampler = {0};
-	sampler.zoom = 1;
+	struct sampler sampler = { NULL, 1, 0, 3000 };
 
 	// init audio_playback
 	struct alsa_dev a_dev = {0};

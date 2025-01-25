@@ -59,7 +59,6 @@ static void draw_sample_window(const struct system* sys, const Vector2* origin)
 static void draw_waveform(const struct sampler* sampler, const Vector2* origin)
 {
 	// waveform constants
-	static const int MAX_POINTS = 4000;			// max points to render
 	static const float WAVE_WIDTH = 580.0f;			// width of wave spline 
 	static const float WAVE_HEIGHT = 280.0f;		// max height of wave spline
 
@@ -84,9 +83,9 @@ static void draw_waveform(const struct sampler* sampler, const Vector2* origin)
 	// not all frames will be rendered at once
 	int num_vertices;
 	float frame_freq;
-	if (frames_to_draw > MAX_POINTS) { 
-		num_vertices = MAX_POINTS;
-		frame_freq = (float) frames_to_draw / (float) MAX_POINTS;
+	if (frames_to_draw > sampler->max_vert) { 
+		num_vertices = sampler->max_vert;
+		frame_freq = (float) frames_to_draw / (float) sampler->max_vert;
 	} else {
 		num_vertices = frames_to_draw;
 		frame_freq = 1.0f;

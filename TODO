@@ -1,6 +1,25 @@
-figure out better method for envelope
-Add time stretching to sample
+SAMPLER
+---------------------------------
+Add sample info screen
 Add grid + snapping
-Flesh out UI
+Rethink keyboard input
+implement delay then repeat controls
+Reasses UI layout
+Add file loading / banks
 
-can maybe remove alsa_dev struct and just use native pcm
+MISC
+----------------------------------
+Add help screen
+Add error log screen
+
+TESTING
+--------------------------------------------
+Test with very long samples
+
+ISSUES
+------------------------------------------------
+Popping in green test
+
+BONUS
+------------------------------------------------
+remove unused stuff from alsa_dev struct
