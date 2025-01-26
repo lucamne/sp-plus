@@ -29,12 +29,14 @@ int main(int argc, char** argv)
 	// init gui
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_NAME); 
 	ToggleFullscreen();
+	HideCursor();
 	SetTargetFPS(30);
 
 	// load some data for testing
-	sampler.banks = malloc(sizeof(struct sample*));
+	sampler.num_banks = 2;
+	sampler.banks = malloc(sizeof(struct sample*) * sampler.num_banks);
 	sampler.banks[0] = calloc(NUM_PADS, sizeof(struct sample));
-	sampler.num_banks = 1;
+	sampler.banks[1] = calloc(NUM_PADS, sizeof(struct sample));
 	// load samples
 	if (load_wav_into_sample(&sampler.banks[0][0], WAV3)) {
 		fprintf(stderr, "Error loading %s\n", WAV3);
@@ -44,7 +46,7 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Error loading %s\n", WAV4);
 		return 0;
 	}
-	if (load_wav_into_sample(&sampler.banks[0][2], WAV1)) {
+	if (load_wav_into_sample(&sampler.banks[1][0], WAV1)) {
 		fprintf(stderr, "Error loading %s\n", WAV1);
 		return 0;
 	}
@@ -55,7 +57,7 @@ int main(int argc, char** argv)
 	// attach samples to input
 	sb1.sample_in = &sampler.banks[0][0];
 	sb2.sample_in = &sampler.banks[0][1];
-	sb3.sample_in = &sampler.banks[0][2];
+	sb3.sample_in = &sampler.banks[1][0];
 	// attach aux busses to master bus
 	add_bus_in(&master, &sb1);
 	add_bus_in(&master, &sb2);

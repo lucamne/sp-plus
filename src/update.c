@@ -91,6 +91,13 @@ void update_sampler(struct sampler* sampler)
 		sampler->zoom /= 2;
 		if (sampler->zoom < 1) sampler->zoom = 1;
 	}
+	// switch bank
+	if (IsKeyPressed(KEY_B)) {
+		if (!alt && sampler->cur_bank + 1 < sampler->num_banks)
+			sampler->cur_bank += 1;
+		else if (sampler->cur_bank > 0 ) 
+			sampler->cur_bank -= 1;
+	}
 
 	/* Update active sample */
 	struct sample *s = *active_sample;

@@ -1,9 +1,17 @@
 SAMPLER
 ----------------------------------
-Redo UI with window maximized
+Switch between banks
+
+Sample Pad manipulation
+	sample loading
+		load sample from wav file to desired pad
+		load sample(s) from folder of wav files to desired pads
+	swap sample pads
+	copy sample to another pad
+	chop sample to other pads
+
 Rethink keyboard input
 implement delay then repeat controls
-Add file loading / banks
 
 MISC
 ----------------------------------
@@ -21,6 +29,7 @@ Popping in green test
 BONUS
 ------------------------------------------------
 remove unused stuff from alsa_dev struct
+Change font
 maybe grid for sampler?:
 	add auto grid selection
 	add snapping
