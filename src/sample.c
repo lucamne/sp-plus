@@ -151,39 +151,6 @@ int load_wav_into_sample(struct sample* s, const char* path)
 
 
 // squeeze attack and release frames to fit within start and end frames
-static void squeeze_envelope(struct sample* s )
-{
-	if (s->end_frame - s->start_frame > s->attack + s->release) return;
-	float r = (float) s->attack / (s->release + s->attack);
-	s->attack = (s->end_frame - s->start_frame) * r;
-	s->release = s->end_frame - s->start_frame - s->attack;
-}
-
-int set_start(struct sample* s, int32_t frame)
-{
-	if (!s) return 1;
-
-	if (frame < 0) s->start_frame = 0;
-	else if (frame >= s->end_frame) s->start_frame = s->end_frame - 1;
-	else s->start_frame = frame;
-
-	squeeze_envelope(s);
-	if (!s->playing) kill_sample(s);
-	return 0;
-}
-
-int set_end(struct sample* s, int32_t frame)
-{
-	if (!s) return 1;
-
-	if (frame > s->num_frames) s->end_frame = s->num_frames;
-	else if (frame <= s->start_frame) s->end_frame = s->start_frame + 1;
-	else s->end_frame = frame;
-
-	squeeze_envelope(s);
-	if (!s->playing) kill_sample(s);
-	return 0;
-}
 
 static int increment_frame(struct sample* s)
 {
@@ -281,36 +248,4 @@ int kill_sample(struct sample* s)
 		if (s->speed < 0) s->speed *= -1;
 	}
 	return 0;
-}
-
-int set_attack(struct sample* s, float ms)
-{
-	if (!s) return 1;
-	if (ms < 0) return 1;
-	const int32_t frames = ms_to_frames(ms);
-	if (s->end_frame - s->start_frame - s->release < frames) return 1;
-	s->attack = frames;
-	return 0;
-}
-
-int set_release(struct sample* s, float ms)
-{
-	if (!s) return 1;
-	if (ms < 0) return 1;
-	const int32_t frames = ms_to_frames(ms);
-	if (s->end_frame - s->start_frame - s->attack < frames) return 1;
-	s->release = frames;
-	return 0;
-}
-
-
-
-void set_speed(struct sample* s, const float speed)
-{
-	static const float MAX_SPEED = 4.1;
-
-	if (speed <= 0.01 || speed > MAX_SPEED) return;
-
-	const char sign = s->speed > 0 ? 1 : -1;
-	s->speed = sign * speed;
 }

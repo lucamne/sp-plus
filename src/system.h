@@ -93,20 +93,11 @@ struct alsa_dev {
 // load wav into provided sample, return 0 iff success
 // NOTE: function not responsible for freeing any memory allocated by caller
 int load_wav_into_sample(struct sample* s, const char* path);
-// set start frame
-int set_start(struct sample* s, int32_t frame);
-// set end_frame
-int set_end(struct sample* s, int32_t frame);
-// set attack in ms
-int set_attack(struct sample* s, float ms);
-// set release in ms
-int set_release(struct sample* s, float ms);
 // process next frame into out and increment s->next_frame after
 int process_next_frame(double out[], struct sample* s);
 // stops playback and sets next_frame to correct position based on playback options
 int kill_sample(struct sample* s);
 // [1, 200], 100 is normal
-void set_speed(struct sample* s, const float speed);
 double get_envelope_gain(struct sample* s);
 
 //------------------------------------------------------------------------------
@@ -141,15 +132,10 @@ void update_sampler(struct sampler* sampler);
 // Utility 
 // -----------------------------------------------------------------------------
 
-static double gain_to_dbfs(const double d) { return 20.0 * log10(fabs(d)); }
-static double dbfs_to_gain(const double d) { return pow(10.0, d / 20.0); }
-static float frames_to_ms(const int32_t f) { return 1000.0f * f / SAMPLE_RATE; }
-static int32_t ms_to_frames(const float m) { return m * SAMPLE_RATE / 1000.0f; }
-static float speed_to_st(const float speed) { return -12 * log2f(1.0f / speed); }
 static float st_to_speed(const float st) { return powf(2.0f, st / 12.0f); }
-
-
-
+static float speed_to_st(float speed) { return -12 * log2f(1.0f / speed); }
+static int32_t ms_to_frames(const float m) { return m * SAMPLE_RATE / 1000.0f; }
+static float frames_to_ms(const int32_t f) { return 1000.0f * f / SAMPLE_RATE; }
 
 void draw(const struct sampler* sampler);
 
