@@ -22,10 +22,6 @@ struct sampler {
 	int zoom;			// wave viewer zoom
 	Marker zoom_focus;		// focal point of zoom
 	int max_vert;			// max vertices to render in wave viewer
-	// grid lines stuff
-	int subdiv_top;			// grid subdivision e.g. 2/1, 1/1, 1/2
-	int subdiv_bot;		
-	GridMode grid_mode;
 };
 
 void draw(const struct system* sys, const struct sampler* sampler);

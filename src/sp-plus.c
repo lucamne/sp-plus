@@ -125,7 +125,7 @@ int main(int argc, char** argv)
 	struct bus master = {0};
 	sys.master = master;
 	// init sampler
-	struct sampler sampler = { NULL, 1, 0, 3000, 2, 1, AUTO};
+	struct sampler sampler = { NULL, 1, 0, 3000 };
 
 	// init audio_playback
 	struct alsa_dev a_dev = {0};

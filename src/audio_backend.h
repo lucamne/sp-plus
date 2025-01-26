@@ -36,8 +36,6 @@ struct sample {
 	LoopMode loop_mode;
 	bool reverse;		// is sample playing from start to end
 
-	int tempo;		// quarter notes per min 
-
 	int32_t attack;		// attack in frames
 	int32_t release;	// release in frames
 

@@ -93,29 +93,6 @@ static void draw_waveform(const struct sampler* sampler, const Vector2* origin)
 	}
 	const float vertex_spacing = WAVE_WIDTH / (float) (num_vertices);
 
-	// calculate gridline spacing
-	// min/beat * sec/min * beat/measure * measure/gridline * frames/sec
-	if (sampler->grid_mode) {
-		const int div_top = sampler->subdiv_top;
-		const int div_bot = sampler->subdiv_bot;
-		const int frames_per_gridline = 
-			1.0 / s->tempo * 60 * 4 * div_top / div_bot * SAMPLE_RATE;
-		// draw gridlines
-		for (int32_t i = 0; i < s->num_frames; i += frames_per_gridline)
-		{
-			if (i < first_frame_to_draw) 
-				continue;
-			if (i >= first_frame_to_draw + num_vertices * (int) frame_freq)
-				break;
-			const float x = 
-				((i - first_frame_to_draw) / frame_freq) * 
-				vertex_spacing + wave_origin.x;
-			const Vector2 startv = {x, wave_origin.y - WAVE_HEIGHT / 2.0f};
-			const Vector2 endv = {x, wave_origin.y + WAVE_HEIGHT / 2.0f};
-			DrawLineEx(startv, endv, 1.0f, LIGHTGRAY);
-		}
-	}
-
 	// generate vertex list from sample data
 	Vector2 vertices[num_vertices];
 	for (int i = 0; i < num_vertices; i++) {
@@ -198,20 +175,28 @@ static void draw_sampler_controls(const struct sampler* sampler, const Vector2* 
 	// zoom
 	DrawText(TextFormat("zoom: %dx", sampler->zoom), X + 10, Y + 185, 20, WHITE);
 	// sample time
-	int sec = s->num_frames / SAMPLE_RATE / s->speed;
-	int min = sec / 60;
-	sec %= 60;
-	DrawText(TextFormat("Total Length: %01d:%02d", min, sec), X + 10, Y + 210, 20, WHITE);
-	sec = (s->end_frame - s->start_frame) / SAMPLE_RATE / s->speed;
-	min = sec / 60;
-	sec %= 60;
-	DrawText(TextFormat("Active Length: %01d:%02d", min, sec), X + 10, Y + 235, 20, WHITE);
-	sec = s->next_frame / SAMPLE_RATE / s->speed;
-	min = sec / 60;
-	sec %= 60;
-	DrawText(TextFormat("Playback: %01d:%02d", min, sec), X + 10, Y + 260, 20, WHITE);
-	// tempo
-	DrawText(TextFormat("Tempo: %d", s->tempo), X + 10, Y + 285, 20, WHITE);
+	int times[3 * 2] = {0};	// holds mins and secs for each time field
+	if (s->num_frames) {
+		// total
+		const float speed = fabs(s->speed);
+		int sec = s->num_frames / SAMPLE_RATE / speed;
+		times[0] = sec / 60;
+		times[1] = sec % 60;
+		// active
+		sec = (s->end_frame - s->start_frame) / SAMPLE_RATE / speed;
+		times[2] = sec / 60;
+		times[3] = sec % 60;
+		// playback
+		sec = s->next_frame / SAMPLE_RATE / speed;
+		times[4] = sec / 60;
+		times[5] = sec % 60;
+	} 
+	DrawText(TextFormat("Total Length: %01d:%02d", times[0], times[1]), 
+			X + 10, Y + 210, 20, WHITE);
+	DrawText(TextFormat("Active Length: %01d:%02d", times[2], times[3]),
+			X + 10, Y + 235, 20, WHITE);
+	DrawText(TextFormat("Playback: %01d:%02d", times[4], times[5]),
+			X + 10, Y + 260, 20, WHITE);
 }
 
 static void draw_sample_info(const struct sampler *sampler, const Vector2 *origin)

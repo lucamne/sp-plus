@@ -84,7 +84,6 @@ int load_wav_into_sample(struct sample* s, const char* path)
 	s->speed = 1.0f;
 	s->loop_mode = LOOP_OFF;
 	s->gate_closed = false;
-	s->tempo = 120;
 
 	struct wav_file w = {0};
 	if (load_wav(&w, path)) return 1;
