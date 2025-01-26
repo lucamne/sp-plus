@@ -1,9 +1,8 @@
 SAMPLER
 ----------------------------------
-Refactor current design
+Redo UI with window maximized
 Rethink keyboard input
 implement delay then repeat controls
-Reasses UI layout
 Add file loading / banks
 
 MISC
