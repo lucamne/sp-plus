@@ -94,12 +94,12 @@ static void draw_sampler(const struct sampler* sampler, const Vector2* origin)
 	if (!sampler || !origin) return;
 
 	const float BORDER_WIDTH = WINDOW_WIDTH / 2;
-	const float BORDER_HEIGHT = WINDOW_HEIGHT / 2;
+	const float BORDER_HEIGHT = 325;
 	const float VIEWER_WIDTH = 600;
 	const float VIEWER_HEIGHT = 300;
 	const float FONT_SIZE = 19;
-	const float PAD_WIDTH = 40;
-	const float PAD_HEIGHT = 40;
+	const float PAD_WIDTH = 30;
+	const float PAD_HEIGHT = 30;
 
 	float X = origin->x;
 	float Y = origin->y;
@@ -119,7 +119,7 @@ static void draw_sampler(const struct sampler* sampler, const Vector2* origin)
 	DrawRectangleLinesEx(infopane, 2.0f, WHITE);
 
 	const Rectangle controlpane = { X + VIEWER_WIDTH - 2, Y + 128,
-		BORDER_WIDTH - VIEWER_WIDTH + 2, 197 };
+		(BORDER_WIDTH - VIEWER_WIDTH) / 2 + 1, 197 };
 	DrawRectangleLinesEx(controlpane, 2.0f, WHITE);
 
 	// info
@@ -190,41 +190,81 @@ static void draw_sampler(const struct sampler* sampler, const Vector2* origin)
 	// waveform
 	draw_waveform(sampler, X + 10, Y + 175, VIEWER_WIDTH - 20, VIEWER_HEIGHT - 20);
 
+	// bank
+	const int BANK = sampler->cur_bank;
+	DrawText(TextFormat("bank: %d/%d", BANK + 1, sampler->num_banks),
+			X + VIEWER_WIDTH + 12 + (BORDER_WIDTH - VIEWER_WIDTH) / 2 + 1,
+			Y + 140, FONT_SIZE, WHITE);
+
 	// sample pads
 	struct sample **banks = sampler->banks;
-	const float PAD_Y = Y + VIEWER_HEIGHT + 35;
-	float PAD_X = X + VIEWER_WIDTH + 10;
-
-	const Rectangle padq = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
-	if (banks[0][PAD_Q].num_frames && banks[0][PAD_Q].playing) 
+	float pad_y = Y + 175;
+	float pad_x = X + VIEWER_WIDTH + 12 + (BORDER_WIDTH - VIEWER_WIDTH) / 2 + 1;
+	// row 1
+	const Rectangle padq = { pad_x, pad_y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[BANK][PAD_Q].num_frames && banks[BANK][PAD_Q].playing) 
 		DrawRectangleRec(padq, ORANGE);
 	else 
 		DrawRectangleRec(padq, WHITE);
-	DrawText("q", PAD_X + 5, PAD_Y + 5, 20, BLACK);
+	DrawText("q", pad_x + 5, pad_y + 5, FONT_SIZE, BLACK);
 
-	PAD_X += PAD_WIDTH + 10;
-	const Rectangle padw = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
-	if (banks[0][PAD_W].num_frames && banks[0][PAD_W].playing)
+	pad_x += PAD_WIDTH + 10;
+	const Rectangle padw = { pad_x, pad_y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[BANK][PAD_W].num_frames && banks[BANK][PAD_W].playing)
 		DrawRectangleRec(padw, ORANGE);
 	else 
 		DrawRectangleRec(padw, WHITE);
-	DrawText("w", PAD_X + 5, PAD_Y + 5, 20, BLACK);
+	DrawText("w", pad_x + 5, pad_y + 5, FONT_SIZE, BLACK);
 
-	PAD_X += PAD_WIDTH + 10;
-	const Rectangle pade = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
-	if (banks[0][PAD_E].num_frames && banks[0][PAD_E].playing)
+	pad_x += PAD_WIDTH + 10;
+	const Rectangle pade = { pad_x, pad_y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[BANK][PAD_E].num_frames && banks[BANK][PAD_E].playing)
 		DrawRectangleRec(pade, ORANGE);
 	else
 		DrawRectangleRec(pade, WHITE);
-	DrawText("e", PAD_X + 5, PAD_Y + 5, 20, BLACK);
+	DrawText("e", pad_x + 5, pad_y + 5, FONT_SIZE, BLACK);
 
-	PAD_X += PAD_WIDTH + 10;
-	const Rectangle padr = { PAD_X, PAD_Y, PAD_WIDTH, PAD_HEIGHT};
-	if (banks[0][PAD_R].num_frames && banks[0][PAD_R].playing)
+	pad_x += PAD_WIDTH + 10;
+	const Rectangle padr = { pad_x, pad_y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[BANK][PAD_R].num_frames && banks[BANK][PAD_R].playing)
 		DrawRectangleRec(padr, ORANGE);
 	else
 		DrawRectangleRec(padr, WHITE);
-	DrawText("r", PAD_X + 5, PAD_Y + 5, 20, BLACK);
+	DrawText("r", pad_x + 5, pad_y + 5, FONT_SIZE, BLACK);
+
+	// row 2
+	pad_x = X + VIEWER_WIDTH + 12 + (BORDER_WIDTH - VIEWER_WIDTH) / 2 + 1;
+	pad_y += PAD_HEIGHT + 10;
+	const Rectangle pada = { pad_x, pad_y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[BANK][PAD_A].num_frames && banks[BANK][PAD_A].playing) 
+		DrawRectangleRec(pada, ORANGE);
+	else 
+		DrawRectangleRec(pada, WHITE);
+	DrawText("a", pad_x + 5, pad_y + 5, FONT_SIZE, BLACK);
+
+	pad_x += PAD_WIDTH + 10;
+	const Rectangle pads = { pad_x, pad_y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[BANK][PAD_S].num_frames && banks[BANK][PAD_S].playing)
+		DrawRectangleRec(pads, ORANGE);
+	else 
+		DrawRectangleRec(pads, WHITE);
+	DrawText("s", pad_x + 5, pad_y + 5, FONT_SIZE, BLACK);
+
+	pad_x += PAD_WIDTH + 10;
+	const Rectangle padd = { pad_x, pad_y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[BANK][PAD_D].num_frames && banks[BANK][PAD_D].playing)
+		DrawRectangleRec(padd, ORANGE);
+	else
+		DrawRectangleRec(padd, WHITE);
+	DrawText("d", pad_x + 5, pad_y + 5, FONT_SIZE, BLACK);
+
+	pad_x += PAD_WIDTH + 10;
+	const Rectangle padf = { pad_x, pad_y, PAD_WIDTH, PAD_HEIGHT};
+	if (banks[BANK][PAD_F].num_frames && banks[BANK][PAD_F].playing)
+		DrawRectangleRec(padf, ORANGE);
+	else
+		DrawRectangleRec(padf, WHITE);
+	DrawText("f", pad_x + 5, pad_y + 5, FONT_SIZE, BLACK);
 }
 
 void draw(const struct sampler* sampler)

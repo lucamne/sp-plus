@@ -13,7 +13,7 @@ int main(int argc, char** argv)
 	// init master bus
 	struct bus master = {0};
 	// init sampler
-	struct sampler sampler = { NULL, 0, NULL, 1, 0, 3000 };
+	struct sampler sampler = { NULL, 0, NULL, 0, 1, 0, 3000 };
 
 	// init audio_playback
 	struct alsa_dev a_dev = {0};

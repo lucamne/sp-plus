@@ -45,34 +45,35 @@ void update_sampler(struct sampler* sampler)
 {
 	struct sample** banks = sampler->banks;
 	struct sample** active_sample = &sampler->active_sample;
+	int cur_bank = sampler->cur_bank;
 
 	const bool alt = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
 
 	/* Update general sampler parameters */
 	// trigger samples
 	if (IsKeyPressed(KEY_Q)) {
-		if (!alt) trigger_sample(&banks[0][PAD_Q]);
-		*active_sample = &banks[0][PAD_Q];
+		if (!alt) trigger_sample(&banks[cur_bank][PAD_Q]);
+		*active_sample = &banks[cur_bank][PAD_Q];
 	} else if (IsKeyUp(KEY_Q)){
-		close_gate(&banks[0][PAD_Q]);
+		close_gate(&banks[cur_bank][PAD_Q]);
 	}
 	if (IsKeyPressed(KEY_W)) {
-		if (!alt) trigger_sample(&banks[0][PAD_W]);
-		*active_sample = &banks[0][PAD_W];
+		if (!alt) trigger_sample(&banks[cur_bank][PAD_W]);
+		*active_sample = &banks[cur_bank][PAD_W];
 	} else if (IsKeyUp(KEY_W)){
-		close_gate(&banks[0][PAD_W]);
+		close_gate(&banks[cur_bank][PAD_W]);
 	}
 	if (IsKeyPressed(KEY_E)) {
-		if (!alt) trigger_sample(&banks[0][PAD_E]);
-		*active_sample = &banks[0][PAD_E];
+		if (!alt) trigger_sample(&banks[cur_bank][PAD_E]);
+		*active_sample = &banks[cur_bank][PAD_E];
 	} else if (IsKeyUp(KEY_E)){
-		close_gate(&banks[0][PAD_E]);
+		close_gate(&banks[cur_bank][PAD_E]);
 	}
 	if (IsKeyPressed(KEY_R)) {
-		if (!alt) trigger_sample(&banks[0][PAD_R]);
-		*active_sample = &banks[0][PAD_R];
+		if (!alt) trigger_sample(&banks[cur_bank][PAD_R]);
+		*active_sample = &banks[cur_bank][PAD_R];
 	} else if (IsKeyUp(KEY_R)){
-		close_gate(&banks[0][PAD_R]);
+		close_gate(&banks[cur_bank][PAD_R]);
 	}
 	// stop all samples
 	if (IsKeyPressed(KEY_X)) {

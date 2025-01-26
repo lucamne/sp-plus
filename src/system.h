@@ -14,13 +14,15 @@
  * Luca Negris - 01/2025
  */
 
-enum { PAD_Q = 0, PAD_W, PAD_E, PAD_R };
+enum Pad { PAD_Q = 0, PAD_W, PAD_E, PAD_R, PAD_A, PAD_S, PAD_D, PAD_F };
 typedef enum Marker { PLAY, START, END } Marker;
 
 struct sampler {
 	struct sample** banks;		// all loaded samples [BANK][PAD]
 	int num_banks;
+
 	struct sample* active_sample;	// current sample to display
+	int cur_bank;			// currently selected sample bank
 
 	int zoom;			// wave viewer zoom
 	Marker zoom_focus;		// focal point of zoom
