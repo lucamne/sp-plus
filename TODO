@@ -1,10 +1,6 @@
 SAMPLER
----------------------------------
-grid:
-	add auto grid selection
-	add snapping
-	add grid ui
-	add tempo ui
+----------------------------------
+Refactor current design
 Rethink keyboard input
 implement delay then repeat controls
 Reasses UI layout
@@ -26,3 +22,8 @@ Popping in green test
 BONUS
 ------------------------------------------------
 remove unused stuff from alsa_dev struct
+maybe grid for sampler?:
+	add auto grid selection
+	add snapping
+	add grid ui
+	add tempo ui

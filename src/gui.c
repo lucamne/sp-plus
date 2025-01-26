@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-static void draw_sample_window(const struct system* sys, const Vector2* origin)
+static void draw_sample_window(const struct sampler* sampler, const Vector2* origin)
 {	
 	static const float WIN_WIDTH = 600;
 	static const float WIN_HEIGHT = 300;
@@ -14,7 +14,7 @@ static void draw_sample_window(const struct system* sys, const Vector2* origin)
 	const float X = origin->x;
 	const float Y = origin->y + 25;
 
-	struct sample** banks = sys->banks;
+	struct sample** banks = sampler->banks;
 
 	// waveform window
 	const Rectangle win = { X, Y , WIN_WIDTH,  WIN_HEIGHT };
@@ -210,24 +210,23 @@ static void draw_sample_info(const struct sampler *sampler, const Vector2 *origi
 }
 
 static void draw_sampler(
-		const struct system* sys, 
 		const struct sampler* sampler,
 		const Vector2 *origin)
 {
-	if (!sys || !sampler || !origin) return;
+	if (!sampler || !origin) return;
 
 	draw_sample_info(sampler, origin);
-	draw_sample_window(sys, origin);
+	draw_sample_window(sampler, origin);
 	draw_waveform(sampler, origin);
 	draw_sampler_controls(sampler, origin);
 }
 
-void draw(const struct system* sys, const struct sampler* sampler)
+void draw(const struct sampler* sampler)
 {
 	static const Vector2 sampler_origin = { 10, 10 };
 	BeginDrawing();
 	ClearBackground(BLACK);
-	draw_sampler(sys, sampler, &sampler_origin);
+	draw_sampler(sampler, &sampler_origin);
 	EndDrawing();
 }
 

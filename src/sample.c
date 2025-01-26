@@ -1,5 +1,5 @@
 #include "defs.h"
-#include "audio_backend.h"
+#include "system.h"
 #include "file_io.h"
 #include "smarc.h"
 
@@ -149,16 +149,6 @@ int load_wav_into_sample(struct sample* s, const char* path)
 }
 
 
-int trigger_sample(struct sample* s)
-{
-	if (!s->reverse) s->next_frame = s->start_frame;
-	else s->next_frame = s->end_frame - 1.0;
-
-	if (s->loop_mode && s->playing)
-		s->playing = false;
-	else
-		s->playing = true;
-}
 
 // squeeze attack and release frames to fit within start and end frames
 static void squeeze_envelope(struct sample* s )
@@ -245,7 +235,7 @@ static int increment_frame(struct sample* s)
 	return 0;
 }
 
-static double get_envelope_gain(struct sample* s)
+double get_envelope_gain(struct sample* s)
 {
 	double g = 1.0;
 	if (s->attack && s->next_frame - s->start_frame < s->attack) {
@@ -314,25 +304,6 @@ int set_release(struct sample* s, float ms)
 }
 
 
-int close_gate(struct sample* s)
-{
-	if (!s) return 1;
-	s->gate_release_cnt = 0.0;
-	s->gate_closed = true;
-	s->gate_close_gain = get_envelope_gain(s);
-	// if sample is playing forward compare to release
-	if (s->speed > 0) {
-		s->gate_release = s->release;
-		if (s->end_frame - s->next_frame < s->release)
-			s->gate_release_cnt = s->release - (s->end_frame - s->next_frame);
-		// if sample is playing backward compare to attack
-	} else {
-		s->gate_release = s->attack;
-		if (s->next_frame - s->start_frame < s->attack)
-			s->gate_release_cnt = s->release - (s->next_frame - s->start_frame);
-	}
-	return 0;
-}
 
 void set_speed(struct sample* s, const float speed)
 {
