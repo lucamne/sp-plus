@@ -9,8 +9,8 @@
 
 static const int NUM_PADS = 8;
 
-static const int WINDOW_HEIGHT = 900;
-static const int WINDOW_WIDTH = 1600;
+static const int WINDOW_HEIGHT = 1080;
+static const int WINDOW_WIDTH = 1920;
 static const char* WINDOW_NAME = "SP-PLUS";
 
 // uncomment to turn off assertions

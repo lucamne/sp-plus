@@ -4,6 +4,102 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+static void draw_sampler_border(const struct sampler* sampler, const Vector2* origin)
+{
+	const float BORDER_WIDTH = WINDOW_WIDTH / 2;
+	const float BORDER_HEIGHT = WINDOW_HEIGHT / 2;
+	const float VIEWER_WIDTH = 600;
+	const float VIEWER_HEIGHT = 300;
+	const float FONT_SIZE = 19;
+	float X = origin->x;
+	float Y = origin->y;
+	const struct sample *s = sampler->active_sample;
+
+	const Rectangle border = { X, Y, BORDER_WIDTH, BORDER_HEIGHT };
+	DrawRectangleLinesEx(border, 2.0f, WHITE);
+
+	const Rectangle viewer = { X, Y + 25, VIEWER_WIDTH, VIEWER_HEIGHT };
+	DrawRectangleLinesEx(viewer, 2.0f, WHITE);
+
+	const Rectangle namebar = { X, Y, BORDER_WIDTH, 27 };
+	DrawRectangleLinesEx(namebar, 2.0f, WHITE);
+
+	const Rectangle infopane = { X + VIEWER_WIDTH - 2, Y + 25, 
+		BORDER_WIDTH - VIEWER_WIDTH + 2, 105 };
+	DrawRectangleLinesEx(infopane, 2.0f, WHITE);
+
+	const Rectangle controlpane = { X + VIEWER_WIDTH - 2, Y + 128,
+		BORDER_WIDTH - VIEWER_WIDTH + 2, 197 };
+	DrawRectangleLinesEx(controlpane, 2.0f, WHITE);
+
+	// info
+	DrawText(TextFormat("filename: %s", s->path), X + 5, Y + 5, FONT_SIZE, WHITE);
+	DrawText(TextFormat("zoom: %dx", sampler->zoom), 
+			X + VIEWER_WIDTH + 10, Y + 30, FONT_SIZE, WHITE);
+
+	// playback time
+	int times[3 * 2] = {0};	// holds mins and secs for each time field
+	if (s->num_frames) {
+		// total
+		const float speed = fabs(s->speed);
+		int sec = s->num_frames / SAMPLE_RATE / speed;
+		times[0] = sec / 60;
+		times[1] = sec % 60;
+		// active
+		sec = (s->end_frame - s->start_frame) / SAMPLE_RATE / speed;
+		times[2] = sec / 60;
+		times[3] = sec % 60;
+		// playback
+		sec = s->next_frame / SAMPLE_RATE / speed;
+		times[4] = sec / 60;
+		times[5] = sec % 60;
+	} 
+	DrawText(TextFormat("total length: %01d:%02d", times[0], times[1]), 
+			X + VIEWER_WIDTH + 10, Y + 55, FONT_SIZE, WHITE);
+	DrawText(TextFormat("active length: %01d:%02d", times[2], times[3]),
+			X + VIEWER_WIDTH + 10, Y + 80, FONT_SIZE, WHITE);
+	DrawText(TextFormat("playback: %01d:%02d", times[4], times[5]),
+			X + VIEWER_WIDTH + 10, Y + 105, FONT_SIZE, WHITE);
+
+	// sample controls
+	// gate
+	DrawText("gate", X + VIEWER_WIDTH + 10, Y + 140, FONT_SIZE, WHITE);
+	if (s->gate) 
+		DrawRectangle(X + VIEWER_WIDTH + 125, Y + 140, 20.0f, 20.0f, WHITE);
+	else 
+		DrawRectangleLines(X + VIEWER_WIDTH + 125, Y + 140, 20.0f, 20.0f, WHITE);
+
+	// reverse
+	DrawText("reverse", X + VIEWER_WIDTH + 10, Y + 165, FONT_SIZE, WHITE);
+	if (s->reverse) 
+		DrawRectangle(X + VIEWER_WIDTH + 125, Y + 165, 20.0f, 20.0f, WHITE);
+	else 
+		DrawRectangleLines(X + VIEWER_WIDTH + 125, Y + 165, 20.0f, 20.0f, WHITE);
+
+	// loop
+	DrawText("loop:", X + VIEWER_WIDTH + 10, Y + 190, FONT_SIZE, WHITE);
+	if (s->loop_mode == LOOP_OFF) 
+		DrawText("off", X + VIEWER_WIDTH + 65, Y + 190, FONT_SIZE, WHITE);
+	else if (s->loop_mode == LOOP) 
+		DrawText("loop", X + VIEWER_WIDTH + 65, Y + 190, FONT_SIZE, WHITE);
+	else 
+		DrawText("ping-pong", X + VIEWER_WIDTH + 65, Y + 190, FONT_SIZE, WHITE);
+
+	// attack / release
+	DrawText(TextFormat("attack: %.0fms", frames_to_ms(s->attack)), 
+			X + VIEWER_WIDTH + 10, Y + 215, FONT_SIZE, WHITE);
+	DrawText(TextFormat("release: %.0fms", frames_to_ms(s->release)), 
+			X + VIEWER_WIDTH + 10, Y + 240, FONT_SIZE, WHITE);
+
+	// pitch / speed
+	DrawText(TextFormat("pitch: %+.0fst", roundf(speed_to_st(fabs(s->speed)))), 
+			X + VIEWER_WIDTH + 10, Y + 265, FONT_SIZE, WHITE);
+	DrawText(TextFormat("speed: %.2fx", fabs(s->speed)), 
+			X + VIEWER_WIDTH + 10, Y + 290, FONT_SIZE, WHITE);
+
+	// waveform
+}
+
 static void draw_sample_window(const struct sampler* sampler, const Vector2* origin)
 {	
 	static const float WIN_WIDTH = 600;
@@ -215,10 +311,13 @@ static void draw_sampler(
 {
 	if (!sampler || !origin) return;
 
-	draw_sample_info(sampler, origin);
-	draw_sample_window(sampler, origin);
-	draw_waveform(sampler, origin);
-	draw_sampler_controls(sampler, origin);
+	draw_sampler_border(sampler, origin);
+	/*
+	   draw_sample_info(sampler, origin);
+	   draw_sample_window(sampler, origin);
+	   draw_waveform(sampler, origin);
+	   draw_sampler_controls(sampler, origin);
+	   */
 }
 
 void draw(const struct sampler* sampler)

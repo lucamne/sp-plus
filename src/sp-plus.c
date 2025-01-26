@@ -28,6 +28,7 @@ int main(int argc, char** argv)
 
 	// init gui
 	InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_NAME); 
+	ToggleFullscreen();
 	SetTargetFPS(30);
 
 	// load some data for testing
