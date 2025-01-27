@@ -15,8 +15,20 @@
  */
 
 enum Pad { PAD_Q = 0, PAD_W, PAD_E, PAD_R, PAD_A, PAD_S, PAD_D, PAD_F };
-typedef enum Marker { PLAY, START, END } Marker;
 
+// data for update functions
+struct update_data {
+	enum {
+		SAMPLER = 0, 
+		FILE_LOAD 
+	} mode; 
+
+	char* in_buf;
+	int in_buf_size;
+	int in_buf_filled;
+};
+
+// registers sampler module state
 struct sampler {
 	struct sample** banks;		// all loaded samples [BANK][PAD]
 	int num_banks;
@@ -25,13 +37,16 @@ struct sampler {
 	int cur_bank;			// currently selected sample bank
 
 	int zoom;			// wave viewer zoom
-	Marker zoom_focus;		// focal point of zoom
+	enum { 
+		PLAY, 
+		START, 
+		END 
+	} zoom_focus;			// focal point of zoom
 	int max_vert;			// max vertices to render in wave viewer
 };
 
 
 
-typedef enum LoopMode {LOOP_OFF = 0, LOOP, PING_PONG} LoopMode;
 // container for audio data
 // the source of all playback is a sample
 struct sample {
@@ -49,7 +64,11 @@ struct sample {
 
 	bool gate;		// trigger sample in gate mode
 	bool playing;		// is sample currently playing
-	LoopMode loop_mode;
+	enum {
+		LOOP_OFF = 0, 
+		LOOP, 
+		PING_PONG
+	} loop_mode;
 	bool reverse;		// is sample playing from start to end
 
 	int32_t attack;		// attack in frames
@@ -128,7 +147,8 @@ int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master);
 //------------------------------------------------------------------------------
 // Update 
 // -----------------------------------------------------------------------------
-void update_sampler(struct sampler* sampler);
+void update_sampler(struct sampler* sampler, struct update_data* update);
+void file_load(struct sampler* sampler, struct update_data* update);
 
 //------------------------------------------------------------------------------
 // Utility 

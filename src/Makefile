@@ -1,5 +1,5 @@
 TARGET = ../sp-plus
-SRC := sp-plus.c wav.c alsa.c sample.c bus.c gui.c update.c
+SRC := sp-plus.c file.c alsa.c sample.c bus.c gui.c update.c
 
 CFLAGS := -g 
 # CFLAGS = -03

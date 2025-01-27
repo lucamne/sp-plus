@@ -1,6 +1,9 @@
 #include "system.h"
 #include "defs.h"
 
+
+// input buffer for loading from file and or folder
+
 static void trigger_sample(struct sample* s)
 {
 	if (!s->reverse) s->next_frame = s->start_frame;
@@ -8,6 +11,8 @@ static void trigger_sample(struct sample* s)
 
 	if (s->loop_mode && s->playing) s->playing = false;
 	else s->playing = true;
+
+	s->gate_closed = false;
 }
 
 static void close_gate(struct sample* s)
@@ -41,13 +46,20 @@ static void squeeze_envelope(struct sample* s )
 }
 
 
-void update_sampler(struct sampler* sampler)
+void update_sampler(struct sampler* sampler, struct update_data* update)
 {
 	struct sample** banks = sampler->banks;
 	struct sample** active_sample = &sampler->active_sample;
 	int cur_bank = sampler->cur_bank;
 
 	const bool alt = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+
+	// Register update mode
+	if (IsKeyPressed(KEY_PERIOD)) {
+		update->mode = FILE_LOAD;
+		memset(update->in_buf, 0, update->in_buf_size);
+		return;
+	}
 
 	/* Update general sampler parameters */
 	// trigger samples
@@ -99,6 +111,7 @@ void update_sampler(struct sampler* sampler)
 			sampler->cur_bank -= 1;
 	}
 
+
 	/* Update active sample */
 	struct sample *s = *active_sample;
 	if (!s) return;
@@ -149,8 +162,8 @@ void update_sampler(struct sampler* sampler)
 	// set envelope
 	if (IsKeyDown(KEY_J)) {
 		float ms = frames_to_ms(s->attack);
-		if (alt) ms -= 1;
-		else ms += 1;
+		if (alt) ms -= 2;
+		else ms += 2;
 		
 		if (ms >= 0) { 
 			const int32_t frames = ms_to_frames(ms);
@@ -161,8 +174,8 @@ void update_sampler(struct sampler* sampler)
 	}
 	if (IsKeyDown(KEY_K)) {
 		float ms = frames_to_ms(s->release);
-		if (alt) ms -= 1; 
-		else ms += 1;
+		if (alt) ms -= 2; 
+		else ms += 2;
 
 		if (ms >= 0) {
 			const int32_t frames = ms_to_frames(ms);
@@ -182,5 +195,17 @@ void update_sampler(struct sampler* sampler)
 	if (IsKeyPressed(KEY_L)) {
 		if (s->loop_mode == PING_PONG) s->loop_mode = LOOP_OFF;
 		else s->loop_mode += 1;
+	}
+}
+
+
+void file_load(struct sampler* sampler, struct update_data* update)
+{
+	for (;;) {
+		const int i = GetKeyPressed();
+		if (!i || i < 39 || i > 96) break;
+
+		const char* c = GetKeyName(i);
+		printf("%s\n", c);
 	}
 }

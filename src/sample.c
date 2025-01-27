@@ -1,6 +1,6 @@
 #include "defs.h"
 #include "system.h"
-#include "file_io.h"
+#include "file.h"
 #include "smarc.h"
 
 #include <stdlib.h>

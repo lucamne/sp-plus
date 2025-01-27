@@ -1,5 +1,5 @@
 #include "defs.h"
-#include "file_io.h"
+#include "file.h"
 #include "system.h"
 #include "raylib.h"
 
@@ -50,6 +50,7 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Error loading %s\n", WAV1);
 		return 0;
 	}
+
 	// create some aux busses
 	struct bus sb1 = {0};
 	struct bus sb2 = {0};
@@ -64,9 +65,23 @@ int main(int argc, char** argv)
 	add_bus_in(&master, &sb3);
 	sampler.active_sample = &sampler.banks[0][0];
 
+	// init update data
+	struct update_data update= {0};
+	update.in_buf_size = 100;
+	update.in_buf = calloc(update.in_buf_size, sizeof(char));
+
 	while(!WindowShouldClose()) {
+
 		// update
-		update_sampler(&sampler);
+		switch (update.mode) {
+			case SAMPLER:
+				update_sampler(&sampler, &update);
+				break;
+			case FILE_LOAD:
+				file_load(&sampler, &update);
+				break;
+		}
+
 		// draw
 		draw(&sampler);
 	}
