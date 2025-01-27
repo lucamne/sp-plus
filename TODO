@@ -1,11 +1,17 @@
+FILE
+-----------------------------------------
+Load single file into sampler
+	Get file path from user
+	check file exists
+	Load file data
+	Get desired bank and pad
+	add tab completetion
+Add file loading ui element
+Load folder into sampler
+
 SAMPLER
 ----------------------------------
-Switch between banks
-
 Sample Pad manipulation
-	sample loading
-		load sample from wav file to desired pad
-		load sample(s) from folder of wav files to desired pads
 	swap sample pads
 	copy sample to another pad
 	chop sample to other pads
@@ -35,3 +41,5 @@ maybe grid for sampler?:
 	add snapping
 	add grid ui
 	add tempo ui
+
+Get rid of raylib, watch handmade

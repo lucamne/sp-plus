@@ -16,16 +16,16 @@
 
 enum Pad { PAD_Q = 0, PAD_W, PAD_E, PAD_R, PAD_A, PAD_S, PAD_D, PAD_F };
 
-// data for update functions
-struct update_data {
+// registers core system state
+struct system {
 	enum {
 		SAMPLER = 0, 
 		FILE_LOAD 
-	} mode; 
+	} mode; 			// control mode
 
-	char* in_buf;
+	char* in_buf;			// buffer for reading user string input
 	int in_buf_size;
-	int in_buf_filled;
+	int in_buf_filled;		// how much of buffer is in use
 };
 
 // registers sampler module state
@@ -147,8 +147,8 @@ int start_alsa_dev(struct alsa_dev* a_dev, struct bus* master);
 //------------------------------------------------------------------------------
 // Update 
 // -----------------------------------------------------------------------------
-void update_sampler(struct sampler* sampler, struct update_data* update);
-void file_load(struct sampler* sampler, struct update_data* update);
+void update_sampler(struct sampler* sampler, struct system* sys);
+void file_load(struct sampler* sampler, struct system* sys);
 
 //------------------------------------------------------------------------------
 // Utility 

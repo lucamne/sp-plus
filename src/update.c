@@ -46,7 +46,7 @@ static void squeeze_envelope(struct sample* s )
 }
 
 
-void update_sampler(struct sampler* sampler, struct update_data* update)
+void update_sampler(struct sampler* sampler, struct system* sys)
 {
 	struct sample** banks = sampler->banks;
 	struct sample** active_sample = &sampler->active_sample;
@@ -56,8 +56,7 @@ void update_sampler(struct sampler* sampler, struct update_data* update)
 
 	// Register update mode
 	if (IsKeyPressed(KEY_PERIOD)) {
-		update->mode = FILE_LOAD;
-		memset(update->in_buf, 0, update->in_buf_size);
+		sys->mode = FILE_LOAD;
 		return;
 	}
 
@@ -199,7 +198,7 @@ void update_sampler(struct sampler* sampler, struct update_data* update)
 }
 
 
-void file_load(struct sampler* sampler, struct update_data* update)
+void file_load(struct sampler* sampler, struct system* sys)
 {
 	for (;;) {
 		const int i = GetKeyPressed();

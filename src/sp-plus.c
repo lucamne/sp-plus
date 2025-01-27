@@ -66,19 +66,19 @@ int main(int argc, char** argv)
 	sampler.active_sample = &sampler.banks[0][0];
 
 	// init update data
-	struct update_data update= {0};
-	update.in_buf_size = 100;
-	update.in_buf = calloc(update.in_buf_size, sizeof(char));
+	struct system sys = {0};
+	sys.in_buf_size = 100;
+	sys.in_buf = calloc(sys.in_buf_size, sizeof(char));
 
 	while(!WindowShouldClose()) {
 
 		// update
-		switch (update.mode) {
+		switch (sys.mode) {
 			case SAMPLER:
-				update_sampler(&sampler, &update);
+				update_sampler(&sampler, &sys);
 				break;
 			case FILE_LOAD:
-				file_load(&sampler, &update);
+				file_load(&sampler, &sys);
 				break;
 		}
 
