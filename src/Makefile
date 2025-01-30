@@ -1,5 +1,5 @@
 TARGET = ../sp-plus
-SRC := sp-plus.c file.c alsa.c sample.c bus.c gui.c update.c
+SRC := linux_sp_plus.c sp_plus.c
 
 CFLAGS := -g 
 # CFLAGS = -03
@@ -7,7 +7,7 @@ CFLAGS := -g
 CFLAGS := $(CFLAGS) -I./external
 
 
-LINKFLAGS = -lm -lasound -L../lib -lsmarc -lraylib
+LINKFLAGS = -lm -lasound -lX11 -L../lib -lsmarc 
 
 all: $(TARGET)
 

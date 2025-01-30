@@ -8,7 +8,7 @@
 #define WAV3 "../test/drums/R-8solid k.wav"
 #define WAV4 "../test/drums/R-8dry clap.wav"
 
-int main(int argc, char** argv)
+int _main(int argc, char** argv)
 {
 	// init master bus
 	struct bus master = {0};
