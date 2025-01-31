@@ -250,11 +250,11 @@ static bool is_little_endian(void)
 	return false;
 }
 
-// loads sample from a file
+// loads sample from a buffer in wav format
 // currently supports only non compressed WAV files
 // sample should be initialized before being passed to load_wav()
 // returns 0 iff success
-static int load_sample(struct sample *s, char *buffer, const long buf_bytes)
+static int load_sample_from_wav_buffer(struct sample *s, char *buffer, const long buf_bytes)
 {
 	if (!s) return 1;
 	// setup sample
@@ -286,65 +286,74 @@ static int load_sample(struct sample *s, char *buffer, const long buf_bytes)
 	}
 
 	// any read should not read the end_ptr or anything past it
+	// data is stored in 4 byte words
 	const char *end_ptr = buffer + buf_bytes;
-	const int word_size = 4;
+	const int word = 4;
 
 	/* parse headers */
-	// check for 'RIFF' tag
+	// check for 'RIFF' tag bytes [0, 3]
 	if (*(int32_t *) buffer ^ 0x46464952) return 1;
+	
+	// get master chunk_size 
+	buffer += word;
+	const int64_t mstr_ck_size = *(int32_t *) buffer;
+	// verify we won't access data outside buffer
+	// TODO more bounds checking should be added in case wav file is not properly formatted
+	if (buffer + word + mstr_ck_size > end_ptr) return 1;
 
-	// check for 'WAVE' tage
+	// check for 'WAVE' tag
 	// TODO spec does not require wave tag here
-	buffer += 2 * word_size;
-	if (*buffer ^ 0x45564157) return 1;
+	buffer += word;
+	if (*(int32_t *) buffer ^ 0x45564157) return 1;
 
 	// check for 'fmt ' tag
-	buffer++;
-	if (*buffer ^ 0x20746D66) return 1;
+	buffer += word;
+	if (*(int32_t *) buffer ^ 0x20746D66) return 1;
+
 	// support only non-extended PCM for now
-	buffer++;
+	buffer += word;
 	const int32_t fmt_ck_size = *buffer;
 	if (fmt_ck_size != 16) return 1;
 
 	/* parse 'fmt ' chunk */
-	buffer++;
-	// 16 bytes read in this section
-	if ((char *) buffer + 16 > end_ptr) return 1;
-	// check for PCM format
-	if ((*buffer & 0xFFFF) != 1) return 1;
-	const int num_channels = *buffer >> 16;
+	// check PCM format and number of channels
+	buffer += word;
+	if ((*(int32_t *) buffer & 0xFFFF) != 1) return 1;
+	const int num_channels = *(int32_t *) buffer >> 16;
 	if (num_channels != 1 && num_channels != 2) {
 		fprintf(stderr, "%d channel(s) not supported\n", num_channels);
 		return 1;
 	}
-	buffer++;
-	const int sample_rate = *buffer;
-	buffer += 2;
-	const int frame_size = *buffer & 0xFFFF;
-	const int bit_depth = *buffer >> 16;
+
+	buffer += word;
+	const int sample_rate = *(int32_t *) buffer;
+
+	buffer += 2 * word;
+	const int frame_size = *(int32_t *) buffer & 0xFFFF;
+	const int bit_depth = *(int32_t *) buffer >> 16;
 	if (bit_depth != 16)
 		fprintf(stderr, "Warning bitdepth is %d\n", bit_depth);
 
-	/* parse data chunk assuming no other chunks come next */
-	buffer = (int32_t *) ((char *) buffer + fmt_ck_size);
+	// TODO if extended format (fmt_ck_size > 16) then more data needs to be read
+
+	/* parse data chunk */
 	// seek to 'data' chunk
-	if ((char *) buffer >= end_ptr) return 1;
-	while (*buffer ^ 0x61746164) { 		
-		buffer++;
-		if ((char *) buffer >= end_ptr) return 1;
-		buffer = (int32_t *) ((char *) buffer + *buffer + sizeof(int32_t));
-		if ((char *) buffer >= end_ptr) return 1;
+	buffer += word;
+	while (*(int32_t *) buffer ^ 0x61746164) { 		
+		// find current chunk size and seek to next chunk
+		// bounds checking is performed in case 'data' chunk is never found
+		buffer += word;
+		if (buffer + word > end_ptr) return 1;
+		const int s = *(int32_t *) buffer;
+		buffer += word + s;
+		if (buffer + word > end_ptr) return 1;
 	}
-	buffer++;
-	if ((char *) buffer >= end_ptr) return 1;
-	const int32_t data_size = *buffer;
+
+	buffer += word;
+	const int32_t data_size = *(int32_t *) buffer;
 	const int32_t num_frames = data_size / frame_size;
 
 	/* register sample info and pcm data */
-	// make sure we only access valid memory
-	buffer++;
-	if ((char *) buffer + data_size > end_ptr) return 1;
-
 	// register some fields
 	s->frame_size = frame_size;
 	s->num_frames = num_frames;
@@ -360,18 +369,19 @@ static int load_sample(struct sample *s, char *buffer, const long buf_bytes)
 
 	// convert samples from int to double and mono to stereo if necassary
 	// then store data in s->data
+	buffer += word;
 	for (int i = 0; i < num_frames; i++) {
 		double l;
 		double r;
 		// left = right if data is mono
 		if (num_channels == 1)
 		{
-			l = ((double) buffer[i]) / 32768.0;
+			l = ((double) ((int16_t *) buffer)[i]) / 32768.0;
 			l = r;
 		} else {
-			l = ((double) buffer[NUM_CHANNELS * i]) / 32768.0;
+			l = ((double) ((int16_t *) buffer)[NUM_CHANNELS * i]) / 32768.0;
 
-			r = ((double) buffer[NUM_CHANNELS * i + 1]) / 32768.0;
+			r = ((double) ((int16_t *) buffer)[NUM_CHANNELS * i + 1]) / 32768.0;
 		}
 		// bounds checking
 		if (l > 1.0) l = 1.0;
@@ -415,7 +425,7 @@ void *allocate_sp_state(void)
 	void *buffer = NULL;
 	const long buf_bytes = load_file(&buffer, WAV1);
 	if (buf_bytes) {
-		if (!load_sample(&(s->sampler.banks[0][0]), buffer, buf_bytes)) {
+		if (!load_sample_from_wav_buffer(&(s->sampler.banks[0][0]), buffer, buf_bytes)) {
 			s->master.sample_in = &(s->sampler.banks[0][0]);
 			trigger_sample((s->master.sample_in));
 		}

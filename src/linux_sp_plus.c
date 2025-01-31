@@ -146,6 +146,7 @@ int main (int argc, char **argv)
 		fprintf(stderr, "Could not register WM_DELETE_WINDOW property\n");
 
 	// maximize screen
+	/*
 	Atom wm_state = XInternAtom(x_data.display, "_NET_WM_STATE", 0);
 	Atom max_h = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
 	Atom max_v = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
@@ -166,6 +167,7 @@ int main (int argc, char **argv)
 		XSendEvent(	x_data.display, DefaultRootWindow(x_data.display), 
 				0, SubstructureNotifyMask, (XEvent *) &ev);
 	}
+	*/
 
 	// TODO performance tracking and maybe frame lock
 	// main update and render loop
