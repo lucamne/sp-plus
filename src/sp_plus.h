@@ -1,6 +1,8 @@
 #ifndef SP_PLUS_H
 #define SP_PLUS_H
 
+#include <stdio.h>
+
 // audio constants
 #define NUM_CHANNELS 2
 #define SAMPLE_RATE 48000
@@ -21,5 +23,14 @@ void update_and_render_sp_plus(
 		int pixel_bytes);
 
 
+/* file IO defined in platform code and called by sp_plus */
+// Returns bytes in buffer or 0 on failure.
+// load_file() will initialize buffer and free buffer on failure
+// on success buffer can be freed later with free_file_buffer()
+long load_file(void **buffer, const char *path);
+// frees buffer passed to load file
+void free_file_buffer(void **buffer);
+
+void file_close(FILE* f);
 
 #endif

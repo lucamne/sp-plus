@@ -275,3 +275,40 @@ int main (int argc, char **argv)
 	// TODO should close alsa handles, may prevent popping
 	return 0;
 }
+
+long load_file(void **buffer, const char *path)
+{
+	FILE *f = fopen(path, "r");
+	if (!f) return 0;
+	// get size of file
+	if (fseek(f, 0, SEEK_END)) {
+		fclose(f);
+		return 0;
+	}
+	const long size = ftell(f);
+	if (size == -1) {
+		fclose(f);
+		return 0;
+	}
+	rewind(f);
+	// allocate buffer
+	*buffer = malloc(size);
+	if (!*buffer) {
+		fclose(f);
+		return 0;
+	}
+	// read data to buffer
+	if (!fread(*buffer, size, 1, f)) {
+		free(*buffer);
+		fclose(f);
+		return 0;
+	}
+
+	fclose(f);
+	return size;
+}
+
+void free_file_buffer(void **buffer) 
+{ 
+	if (*buffer) free(*buffer); 
+}

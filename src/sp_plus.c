@@ -4,11 +4,7 @@
 
 #include <math.h>
 #include <string.h>
-// TODO remove when not needed
-#include <assert.h>
 
-// TODO file loading interface needs to be created in platform code
-#include "file.c"
 // Wav paths for testing
 #define WAV1 "../test/GREEN.wav"
 
@@ -91,79 +87,8 @@ static int resample(struct sample* s, int rate_in, int rate_out)
 	return w;
 }
 
-// read wav file into provided sample
-int load_wav_into_sample(struct sample* s, const char* path)
-{
-	// zero out value which will not be reset
-	// watch for memory leak with data
-	s->data = NULL;
-	s->playing = false;
-	s->speed = 1.0f;
-	s->loop_mode = LOOP_OFF;
-	s->gate_closed = false;
 
-	struct wav_file w = {0};
-	if (load_wav(&w, path)) return 1;
 
-	// only deal with mono and stereo files for now
-	if (w.num_channels != 2 && w.num_channels != 1) {
-		printf("%d channel(s) not supported\n", w.num_channels);
-		return 1;
-	}
-	// convert to stereo if necessary
-	if (w.num_channels == 1) {
-		int16_t* new_data = calloc(2, w.data_size);
-		for (int i = 0; i < w.num_samples; i++) {
-			new_data[2 * i] = w.data[i];
-			new_data[2 * i + 1] = w.data[i];
-		}
-		free(w.data);
-		w.data = new_data;
-		w.data_size *= 2;
-		w.frame_size *= 2;
-	}
-
-	s->num_frames = w.num_samples;
-	s->frame_size = w.frame_size;
-	s->rate = w.sample_rate;
-
-	// convert data from float to double
-	assert(sizeof(double) >= 2);
-	s->data = realloc(s->data, sizeof(double) * s->num_frames * NUM_CHANNELS);
-	for (int i = 0; i < s->num_frames; i++) {
-		// convert left channel
-		double f = ((double) w.data[NUM_CHANNELS * i]) / 32768.0;
-		if (f > 1.0) f = 1.0;
-		else if (f < -1.0) f = -1.0;
-		s->data[NUM_CHANNELS * i] = f;
-		// convert right channel
-		f = ((double) w.data[NUM_CHANNELS * i + 1]) / 32768.0;
-		if (f > 1.0) f = 1.0;
-		else if (f < -1.0) f = -1.0;
-		s->data[NUM_CHANNELS * i + 1] = f;
-	}
-	// resample if necessary
-	if (s->rate != SAMPLE_RATE) {
-		const int r = resample(s, s->rate, SAMPLE_RATE);
-		if (r == -1) {
-			fprintf(stderr, "Resampling Error\n");
-			return 1;
-		}
-		s->num_frames = r;
-		s->rate = SAMPLE_RATE;
-	}
-	// initiliaze here because data may have been reallocated
-	s->next_frame = 0;
-	s->start_frame = 0;
-	s->end_frame = s->num_frames;
-	s->path = malloc(sizeof(char) * (strlen(path) + 1));
-	strcpy(s->path, path);
-
-	free(w.data);
-
-	print_sample(s);
-	return 0;
-}
 static int kill_sample(struct sample* s)
 {
 	if (!s) return 1;
@@ -316,6 +241,166 @@ int fill_audio_buffer(void *sp_state, void* buffer, int frames)
 	return 0;
 }
 
+// check endianess of system at runtime
+static bool is_little_endian(void)
+{
+	int n = 1;
+	if(*(char *)&n == 1) 
+		return true;
+	return false;
+}
+
+// loads sample from a file
+// currently supports only non compressed WAV files
+// sample should be initialized before being passed to load_wav()
+// returns 0 iff success
+static int load_sample(struct sample *s, char *buffer, const long buf_bytes)
+{
+	if (!s) return 1;
+	// setup sample
+	s->path = NULL;
+	s->data = NULL;
+	s->start_frame = 0;
+	s->end_frame = 0;	
+	s->next_frame = 0;
+	s->frame_size = 0;		
+	s->num_frames = 0;
+	s->speed = 1.0;	
+	s->rate = 0;
+	s->gate = 0;		
+	s->playing = 0;
+	s->loop_mode = 0;
+	s->reverse = 0;
+	s->attack = 0;		
+	s->release = 0;
+	s->gate_closed = 0;	
+	s->gate_release = 0;	
+	s->gate_release_cnt = 0;
+	s->gate_close_gain = 0;
+
+
+	// TODO support big_endian systems as well
+	if (!is_little_endian) {
+		fprintf(stderr, "Only little-endian systems are supported\n");
+		return 1;
+	}
+
+	// any read should not read the end_ptr or anything past it
+	const char *end_ptr = buffer + buf_bytes;
+	const int word_size = 4;
+
+	/* parse headers */
+	// check for 'RIFF' tag
+	if (*(int32_t *) buffer ^ 0x46464952) return 1;
+
+	// check for 'WAVE' tage
+	// TODO spec does not require wave tag here
+	buffer += 2 * word_size;
+	if (*buffer ^ 0x45564157) return 1;
+
+	// check for 'fmt ' tag
+	buffer++;
+	if (*buffer ^ 0x20746D66) return 1;
+	// support only non-extended PCM for now
+	buffer++;
+	const int32_t fmt_ck_size = *buffer;
+	if (fmt_ck_size != 16) return 1;
+
+	/* parse 'fmt ' chunk */
+	buffer++;
+	// 16 bytes read in this section
+	if ((char *) buffer + 16 > end_ptr) return 1;
+	// check for PCM format
+	if ((*buffer & 0xFFFF) != 1) return 1;
+	const int num_channels = *buffer >> 16;
+	if (num_channels != 1 && num_channels != 2) {
+		fprintf(stderr, "%d channel(s) not supported\n", num_channels);
+		return 1;
+	}
+	buffer++;
+	const int sample_rate = *buffer;
+	buffer += 2;
+	const int frame_size = *buffer & 0xFFFF;
+	const int bit_depth = *buffer >> 16;
+	if (bit_depth != 16)
+		fprintf(stderr, "Warning bitdepth is %d\n", bit_depth);
+
+	/* parse data chunk assuming no other chunks come next */
+	buffer = (int32_t *) ((char *) buffer + fmt_ck_size);
+	// seek to 'data' chunk
+	if ((char *) buffer >= end_ptr) return 1;
+	while (*buffer ^ 0x61746164) { 		
+		buffer++;
+		if ((char *) buffer >= end_ptr) return 1;
+		buffer = (int32_t *) ((char *) buffer + *buffer + sizeof(int32_t));
+		if ((char *) buffer >= end_ptr) return 1;
+	}
+	buffer++;
+	if ((char *) buffer >= end_ptr) return 1;
+	const int32_t data_size = *buffer;
+	const int32_t num_frames = data_size / frame_size;
+
+	/* register sample info and pcm data */
+	// make sure we only access valid memory
+	buffer++;
+	if ((char *) buffer + data_size > end_ptr) return 1;
+
+	// register some fields
+	s->frame_size = frame_size;
+	s->num_frames = num_frames;
+	s->end_frame = num_frames;
+	s->rate = sample_rate;
+
+	// allocate sample memory
+	s->data = malloc(num_frames * NUM_CHANNELS * sizeof(double));
+	if (!s->data) {
+		fprintf(stderr, "Sample memory allocation error\n");
+		return 1;
+	}
+
+	// convert samples from int to double and mono to stereo if necassary
+	// then store data in s->data
+	for (int i = 0; i < num_frames; i++) {
+		double l;
+		double r;
+		// left = right if data is mono
+		if (num_channels == 1)
+		{
+			l = ((double) buffer[i]) / 32768.0;
+			l = r;
+		} else {
+			l = ((double) buffer[NUM_CHANNELS * i]) / 32768.0;
+
+			r = ((double) buffer[NUM_CHANNELS * i + 1]) / 32768.0;
+		}
+		// bounds checking
+		if (l > 1.0) l = 1.0;
+		else if (l < -1.0) l = -1.0;
+		if (r > 1.0) r = 1.0;
+		else if (r < -1.0) r = -1.0;
+
+		s->data[NUM_CHANNELS * i] = l;
+		s->data[NUM_CHANNELS * i + 1] = r;
+	}
+
+	// resample to SAMPLE_RATE constant if necessary
+	if (s->rate != SAMPLE_RATE) {
+		const int r = resample(s, s->rate, SAMPLE_RATE);
+		if (r == -1) {
+			fprintf(stderr, "Resampling Error\n");
+			free(s->data);
+			return 1;
+		}
+		s->num_frames = r;
+		s->end_frame = r;
+		s->rate = SAMPLE_RATE;
+	}
+
+	print_sample(s);
+	return 0;
+}
+
+
 void *allocate_sp_state(void)
 {
 	struct sp_state *s = calloc(1, sizeof(struct sp_state));
@@ -326,13 +411,16 @@ void *allocate_sp_state(void)
 	s->sampler.banks = calloc(1, sizeof(struct sample*));
 	s->sampler.banks[0] = calloc(8, sizeof(struct sample));
 
-	// load in a file
-	// file_handle *file = file_open(WAV1);
-	// load_wav(sample, file);
-
-	s->master.sample_in = &(s->sampler.banks[0][0]);
-	trigger_sample((s->master.sample_in));
-
+	// load whole file into a buffer
+	void *buffer = NULL;
+	const long buf_bytes = load_file(&buffer, WAV1);
+	if (buf_bytes) {
+		if (!load_sample(&(s->sampler.banks[0][0]), buffer, buf_bytes)) {
+			s->master.sample_in = &(s->sampler.banks[0][0]);
+			trigger_sample((s->master.sample_in));
+		}
+		free_file_buffer(&buffer);
+	}
 
 
 	return (void *) s;
