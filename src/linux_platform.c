@@ -3,8 +3,11 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
+#include <stdint.h>
 
 #include "linux_audio.c"
+
+/* X11 implementation */
 
 struct x_window_data {
 	Display *display;
@@ -120,6 +123,8 @@ void init_x_window(struct x_window_data *data)
 	data->pixel_buf = pixel_buf;
 }
 
+/* update and render loop lives here
+ * calls sp_plus services to get audio visual output */
 
 int main (int argc, char **argv)
 {
@@ -169,12 +174,14 @@ int main (int argc, char **argv)
 	}
 	*/
 
-	// TODO performance tracking and maybe frame lock
+	// TODO: Investigate extremely high resource usage by XORG and sp_plus
+	// 		Not doing enough work in update and render? Framerate too high?
+	// 		I wonder if there are a huge amount of events happening every frame
+	// TODO: performance tracking and maybe frame lock
 	// main update and render loop
 	int size_change = 0;
 	int window_open = 1;
 	while (window_open) {
-
 		// handle window events
 		XEvent ev = {0};
 		while(XPending(x_data.display) > 0) {
@@ -253,8 +260,7 @@ int main (int argc, char **argv)
 		}
 
 		// draw some temporary stuff to the screen
-		/*
-		const int pitch = x_data.width * x_data.pixel_bytes;
+		/* const int pitch = x_data.width * x_data.pixel_bytes;
 		for (int y = 0; y < x_data.height; y++) {
 			char *row = x_data.pixel_buf + (y*pitch);
 			for (int x = 0; x < x_data.width; x++) {
@@ -278,7 +284,9 @@ int main (int argc, char **argv)
 	return 0;
 }
 
-long load_file(void **buffer, const char *path)
+/* File IO services used by sp_plus service */
+
+int64_t platform_load_entire_file(void **buffer, const char *path)
 {
 	FILE *f = fopen(path, "r");
 	if (!f) return 0;
@@ -287,7 +295,7 @@ long load_file(void **buffer, const char *path)
 		fclose(f);
 		return 0;
 	}
-	const long size = ftell(f);
+	const int64_t size = ftell(f);
 	if (size == -1) {
 		fclose(f);
 		return 0;
@@ -310,7 +318,7 @@ long load_file(void **buffer, const char *path)
 	return size;
 }
 
-void free_file_buffer(void **buffer) 
+void platform_free_file_buffer(void **buffer) 
 { 
 	if (*buffer) free(*buffer); 
 }

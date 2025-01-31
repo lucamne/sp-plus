@@ -1,9 +1,8 @@
-#ifndef SP_PLUS_AUDIO_H
-#define SP_PLUS_AUDIO_H
+#ifndef SP_PLUS_AUDIO_TYPES_H
+#define SP_PLUS_AUDIO_TYPES_H
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdlib.h>
 
 // registers sampler module state
 struct sampler {

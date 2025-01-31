@@ -171,7 +171,7 @@ static int xrun_recovery(snd_pcm_t* pcm, int err)
 // container to be passed to callback on receiving signal from pcm device
 struct async_private_data {
 	snd_pcm_uframes_t period_size;
-	struct sp_state *SpState;
+	struct sp_state *sp_state;
 };
 
 
@@ -184,7 +184,7 @@ static void async_callback(snd_async_handler_t *ahandler)
 	struct async_private_data *data = 
 		snd_async_handler_get_callback_private(ahandler);
 	const snd_pcm_uframes_t period_size = data->period_size;
-	void *SpState = data->SpState;
+	void *sp_state = data->sp_state;
 
 	const snd_pcm_channel_area_t *my_areas;
 	snd_pcm_uframes_t offset, frames, size;
@@ -252,7 +252,7 @@ static void async_callback(snd_async_handler_t *ahandler)
 				first = 1;
 			}
 			fill_audio_buffer(	
-					SpState,
+					sp_state,
 					my_areas[0].addr + 
 					offset * my_areas[0].step / 8,
 					frames);
@@ -276,7 +276,7 @@ static void async_callback(snd_async_handler_t *ahandler)
 // initialize async callback and prep pcm buffer with frames
 static int async_init(
 		snd_pcm_t *handle, 
-		struct sp_state *SpState,
+		struct sp_state *sp_state,
 		snd_pcm_uframes_t period_size)
 {
 	// maybe need to free later
@@ -289,7 +289,7 @@ static int async_init(
 	int err, count;
 
 	data->period_size = period_size;
-	data->SpState = SpState;
+	data->sp_state = sp_state;
 
 	err = snd_async_add_pcm_handler(&ahandler, handle, async_callback, data);
 	if (err < 0) {
@@ -323,7 +323,7 @@ static int async_init(
 
 			// implemented by non-platform code
 			fill_audio_buffer(	
-					SpState, 
+					sp_state, 
 					my_areas[0].addr + 
 					offset * my_areas[0].step / 8, 
 					frames);
@@ -352,11 +352,12 @@ static int async_init(
 }
 
 // create open a pcm device and initialize parameters
-snd_pcm_t *start_alsa(struct sp_state *SpState) 
+snd_pcm_t *start_alsa(struct sp_state *sp_state) 
 {
 	int err;
 	snd_pcm_uframes_t buffer_size, period_size;
-		const char* dev_id = "plughw:1,0";
+	// TODO make device configurable
+	const char* dev_id = "plughw:2,0";
 	snd_pcm_t *pcm;
 
 	snd_pcm_hw_params_t* hwparams;
@@ -387,7 +388,7 @@ snd_pcm_t *start_alsa(struct sp_state *SpState)
 		printf("Failed to prepare pcm device\n");
 		return NULL;
 	}
-	err = async_init(pcm, SpState, period_size);
+	err = async_init(pcm, sp_state, period_size);
 
 	if (err < 0) {
 		printf("Playback failed: %s\n", snd_strerror(err));

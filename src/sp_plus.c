@@ -1,12 +1,17 @@
 #include "sp_plus.h"
-#include "sp_plus_audio.h"
+#include "sp_plus_audio_types.h"
 #include "smarc.h"
 
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 
 // Wav paths for testing
 #define WAV1 "../test/GREEN.wav"
+
+
+
+/* Audio playback */
 
 static void trigger_sample(struct sample* s)
 {
@@ -18,76 +23,6 @@ static void trigger_sample(struct sample* s)
 
 	s->gate_closed = false;
 }
-
-static void print_sample(const struct sample* s)
-{
-	printf(
-			"***********************\n"
-			"Sample Info:\n"
-			"-----------------------\n"
-			"Frame size: %dB\n"
-			"Sample Rate: %dHz\n"
-			"Num Frames: %d\n"
-			"***********************\n",
-			s->frame_size,
-			s->rate,
-			s->num_frames);
-}
-
-// change sample's sample rate from rate_in to rate_out
-static int resample(struct sample* s, int rate_in, int rate_out)
-{
-	double bandwidth = 0.95;  // bandwidth
-	double rp = 0.1; // passband ripple factor
-	double rs = 140; // stopband attenuation
-	double tol = 0.000001; // tolerance
-
-	// initialize smarc filter
-	struct PFilter* pfilt = smarc_init_pfilter(rate_in, rate_out, 
-			bandwidth, rp, rs, tol, NULL, 0);
-	if (!pfilt)
-		return -1;
-
-	struct PState* pstate[NUM_CHANNELS];
-	pstate[0] = smarc_init_pstate(pfilt);
-	pstate[1] = smarc_init_pstate(pfilt);
-
-	const int OUT_SIZE = 
-		(int) smarc_get_output_buffer_size(pfilt, s->num_frames);
-	double* outbuf = malloc(OUT_SIZE * sizeof(double));
-	double* left_inbuf = malloc(s->num_frames * sizeof(double));
-	double* right_inbuf = malloc(s->num_frames * sizeof(double));
-
-	// extract left and right channels
-	for (int i = 0; i < s->num_frames; i++) {
-		left_inbuf[i] = s->data[i * NUM_CHANNELS];
-		right_inbuf[i] = s->data[i * NUM_CHANNELS + 1];
-	}
-	s->data = realloc(s->data, sizeof(double) * OUT_SIZE * NUM_CHANNELS);
-	if (!s->data)
-		return -1;
-
-	// resample left channel
-	int w = smarc_resample( pfilt, pstate[0], left_inbuf, 
-			s->num_frames, outbuf, OUT_SIZE);
-	for (int i = 0; i < w; i++)
-		s->data[i * NUM_CHANNELS] = outbuf[i];
-
-	// resample right channel
-	w = smarc_resample( pfilt, pstate[1], right_inbuf, 
-			s->num_frames, outbuf, OUT_SIZE);
-	for (int i = 0; i < w; i++)
-		s->data[i * NUM_CHANNELS + 1] = outbuf[i];
-
-	smarc_destroy_pstate(pstate[0]);
-	smarc_destroy_pstate(pstate[1]);
-	free(left_inbuf);
-	free(right_inbuf);
-	free(outbuf);
-	return w;
-}
-
-
 
 static int kill_sample(struct sample* s)
 {
@@ -212,8 +147,8 @@ static void process_leaf_nodes(double out[], struct bus* b)
 	out[1] *= fmin(1.0 + b->pan, 1.0);
 }
 
-// Process the next n frames and copy result to dest
-// In practice this is used for the alsa callback function
+// called by platform in async callback
+// relies on other audio playback functions
 int fill_audio_buffer(void *sp_state, void* buffer, int frames)
 {
 	struct bus master = ((struct sp_state *) sp_state)->master;
@@ -239,6 +174,78 @@ int fill_audio_buffer(void *sp_state, void* buffer, int frames)
 		memcpy((char *)buffer + i * sizeof(int_out), int_out, sizeof(int_out));
 	}
 	return 0;
+}
+
+/* Loading sample from wav file buffer */
+
+// used for debugging
+// TODO: delete and replace with logging
+static void print_sample(const struct sample* s)
+{
+	printf(
+			"***********************\n"
+			"Sample Info:\n"
+			"-----------------------\n"
+			"Frame size: %dB\n"
+			"Sample Rate: %dHz\n"
+			"Num Frames: %d\n"
+			"***********************\n",
+			s->frame_size,
+			s->rate,
+			s->num_frames);
+}
+
+// change sample's sample rate from rate_in to rate_out
+static int resample(struct sample* s, int rate_in, int rate_out)
+{
+	double bandwidth = 0.95;  // bandwidth
+	double rp = 0.1; // passband ripple factor
+	double rs = 140; // stopband attenuation
+	double tol = 0.000001; // tolerance
+
+	// initialize smarc filter
+	struct PFilter* pfilt = smarc_init_pfilter(rate_in, rate_out, 
+			bandwidth, rp, rs, tol, NULL, 0);
+	if (!pfilt)
+		return -1;
+
+	struct PState* pstate[NUM_CHANNELS];
+	pstate[0] = smarc_init_pstate(pfilt);
+	pstate[1] = smarc_init_pstate(pfilt);
+
+	const int OUT_SIZE = 
+		(int) smarc_get_output_buffer_size(pfilt, s->num_frames);
+	double* outbuf = malloc(OUT_SIZE * sizeof(double));
+	double* left_inbuf = malloc(s->num_frames * sizeof(double));
+	double* right_inbuf = malloc(s->num_frames * sizeof(double));
+
+	// extract left and right channels
+	for (int i = 0; i < s->num_frames; i++) {
+		left_inbuf[i] = s->data[i * NUM_CHANNELS];
+		right_inbuf[i] = s->data[i * NUM_CHANNELS + 1];
+	}
+	s->data = realloc(s->data, sizeof(double) * OUT_SIZE * NUM_CHANNELS);
+	if (!s->data)
+		return -1;
+
+	// resample left channel
+	int w = smarc_resample( pfilt, pstate[0], left_inbuf, 
+			s->num_frames, outbuf, OUT_SIZE);
+	for (int i = 0; i < w; i++)
+		s->data[i * NUM_CHANNELS] = outbuf[i];
+
+	// resample right channel
+	w = smarc_resample( pfilt, pstate[1], right_inbuf, 
+			s->num_frames, outbuf, OUT_SIZE);
+	for (int i = 0; i < w; i++)
+		s->data[i * NUM_CHANNELS + 1] = outbuf[i];
+
+	smarc_destroy_pstate(pstate[0]);
+	smarc_destroy_pstate(pstate[1]);
+	free(left_inbuf);
+	free(right_inbuf);
+	free(outbuf);
+	return w;
 }
 
 // check endianess of system at runtime
@@ -410,7 +417,10 @@ static int load_sample_from_wav_buffer(struct sample *s, char *buffer, const lon
 	return 0;
 }
 
+/* Initialization */
 
+// state allocation service called by platform
+// use this function for initializing debugging data
 void *allocate_sp_state(void)
 {
 	struct sp_state *s = calloc(1, sizeof(struct sp_state));
@@ -423,18 +433,20 @@ void *allocate_sp_state(void)
 
 	// load whole file into a buffer
 	void *buffer = NULL;
-	const long buf_bytes = load_file(&buffer, WAV1);
+	const int64_t buf_bytes = platform_load_entire_file(&buffer, WAV1);
 	if (buf_bytes) {
 		if (!load_sample_from_wav_buffer(&(s->sampler.banks[0][0]), buffer, buf_bytes)) {
 			s->master.sample_in = &(s->sampler.banks[0][0]);
 			trigger_sample((s->master.sample_in));
 		}
-		free_file_buffer(&buffer);
+		platform_free_file_buffer(&buffer);
 	}
 
 
 	return (void *) s;
 }
+
+/* Update and Rendering */
 
 void update_and_render_sp_plus(
 		void *sp_state, 

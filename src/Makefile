@@ -1,5 +1,5 @@
 TARGET = ../sp-plus
-SRC := linux_sp_plus.c sp_plus.c
+SRC := linux_platform.c sp_plus.c
 
 CFLAGS := -g 
 # CFLAGS = -03

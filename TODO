@@ -1,11 +1,20 @@
-CREATE PLATFORM LAYER USING X11
+PLATFORM STUFF
 ------------------------------------------
-
-
-
+ Create Logging
+ Handle Inputs
+ Lock Framerate?
+ Create build bash script to replace make?
 
 FILE
 -----------------------------------------
+
+SAMPLER
+----------------------------------
+Sample Pad manipulation
+	swap sample pads
+	copy sample to another pad
+	chop sample to other pads
+
 Load single file into sampler
 	Get file path from user
 	check file exists
@@ -14,13 +23,6 @@ Load single file into sampler
 	add tab completetion
 Add file loading ui element
 Load folder into sampler
-
-SAMPLER
-----------------------------------
-Sample Pad manipulation
-	swap sample pads
-	copy sample to another pad
-	chop sample to other pads
 
 Rethink keyboard input
 implement delay then repeat controls
@@ -36,16 +38,14 @@ Test with very long samples
 
 ISSUES
 ------------------------------------------------
-Popping in green test
+Popping in green test (seems like it was a hardware issue)
 
 BONUS
 ------------------------------------------------
-remove unused stuff from alsa_dev struct
-Change font
 maybe grid for sampler?:
 	add auto grid selection
 	add snapping
 	add grid ui
 	add tempo ui
 
-Get rid of raylib, watch handmade
+watch handmade!!!
