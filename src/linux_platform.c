@@ -3,9 +3,12 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
-#include <stdint.h>
+#include <assert.h>
 
 #include "linux_audio.c"
+
+#define NSEC_PER_SEC 1000000000
+#define NSEC_PER_MS 1000000
 
 /* X11 implementation */
 
@@ -22,6 +25,7 @@ struct x_window_data {
 	int pixel_buf_size;		// width * height * pixel_bytes
 	char *pixel_buf;		// pixels to be rendered to window
 };
+
 
 
 // initializes a window and populates data struct
@@ -152,35 +156,43 @@ int main (int argc, char **argv)
 
 	// maximize screen
 	/*
-	Atom wm_state = XInternAtom(x_data.display, "_NET_WM_STATE", 0);
-	Atom max_h = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
-	Atom max_v = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
+	   Atom wm_state = XInternAtom(x_data.display, "_NET_WM_STATE", 0);
+	   Atom max_h = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
+	   Atom max_v = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
 
-	if (wm_state == None) {
-		fprintf(stderr, "failed to maximize window\n");
-	} else {
-		XClientMessageEvent ev = {0};
-		ev.type = ClientMessage;
-		ev.format = 32;
-		ev.window = x_data.window;
-		ev.message_type = wm_state;
-		ev.data.l[0] = 2;
-		ev.data.l[1] = max_h;
-		ev.data.l[2] = max_v;
-		ev.data.l[3] = 1;
+	   if (wm_state == None) {
+	   fprintf(stderr, "failed to maximize window\n");
+	   } else {
+	   XClientMessageEvent ev = {0};
+	   ev.type = ClientMessage;
+	   ev.format = 32;
+	   ev.window = x_data.window;
+	   ev.message_type = wm_state;
+	   ev.data.l[0] = 2;
+	   ev.data.l[1] = max_h;
+	   ev.data.l[2] = max_v;
+	   ev.data.l[3] = 1;
 
-		XSendEvent(	x_data.display, DefaultRootWindow(x_data.display), 
-				0, SubstructureNotifyMask, (XEvent *) &ev);
-	}
-	*/
+	   XSendEvent(	x_data.display, DefaultRootWindow(x_data.display), 
+	   0, SubstructureNotifyMask, (XEvent *) &ev);
+	   }
+	   */
+
+	/* main update and render loop */
 
 	// TODO: Investigate extremely high resource usage by XORG and sp_plus
-	// 		Not doing enough work in update and render? Framerate too high?
-	// 		I wonder if there are a huge amount of events happening every frame
-	// TODO: performance tracking and maybe frame lock
-	// main update and render loop
+	// 		Likely just looping too fast. Sleep() does not work because of
+	// 		signal interrupt
+
+	// frame cap data
+	const int target_fps = 60;
+	const long target_npf = (long) NSEC_PER_SEC / target_fps;
+	struct timespec start_time_rt;
+	clock_gettime(CLOCK_REALTIME, &start_time_rt);
+
 	int size_change = 0;
 	int window_open = 1;
+
 	while (window_open) {
 		// handle window events
 		XEvent ev = {0};
@@ -260,7 +272,7 @@ int main (int argc, char **argv)
 		}
 
 		// draw some temporary stuff to the screen
-		/* const int pitch = x_data.width * x_data.pixel_bytes;
+		const int pitch = x_data.width * x_data.pixel_bytes;
 		for (int y = 0; y < x_data.height; y++) {
 			char *row = x_data.pixel_buf + (y*pitch);
 			for (int x = 0; x < x_data.width; x++) {
@@ -268,7 +280,7 @@ int main (int argc, char **argv)
 				if (x % 16 && y % 16) *p = 0xffffffff;
 				else *p = 0;
 			}
-		} */
+		} 
 
 		// call to sp_plus update and render service
 		update_and_render_sp_plus(
@@ -279,6 +291,35 @@ int main (int argc, char **argv)
 		XPutImage(	x_data.display, x_data.window, x_data.default_gc,
 				x_data.x_window_buffer, 0, 0, 0, 0, 
 				x_data.width, x_data.height);
+
+		/* enforce frame cap */
+		struct timespec req;
+		req.tv_sec = start_time_rt.tv_sec;
+		req.tv_nsec = start_time_rt.tv_nsec + target_npf;
+		if (req.tv_nsec > 999999999) {
+			req.tv_sec += req.tv_nsec / NSEC_PER_SEC;
+			req.tv_nsec = req.tv_nsec % NSEC_PER_SEC;
+		}
+		// sleep until request time is reached then reset start_time
+		while (clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &req, NULL));
+		
+		// TODO: performance queury and frame cap implementation kind junk.
+		// 	 figure out how to improve the design
+
+		/* output framerate after enforcing frame cap (Coarse) */
+
+		struct timespec end_time;
+		clock_gettime(CLOCK_REALTIME, &end_time);
+		// time elapsed in nano seconds
+		const long end_time_nsec = end_time.tv_sec * NSEC_PER_SEC + end_time.tv_nsec;
+		const long start_time_nsec = start_time_rt.tv_sec * NSEC_PER_SEC + start_time_rt.tv_nsec;
+		const long elapsed_time_nsec = end_time_nsec - start_time_nsec;
+		start_time_rt = end_time;
+
+		// output timing data for debug, low precision
+		printf(		"%dms/f, %df/s\n", 
+				(int) (elapsed_time_nsec / NSEC_PER_MS), 
+				(int) (NSEC_PER_SEC / elapsed_time_nsec));
 	}
 	// TODO should close alsa handles, may prevent popping
 	return 0;
@@ -286,7 +327,7 @@ int main (int argc, char **argv)
 
 /* File IO services used by sp_plus service */
 
-int64_t platform_load_entire_file(void **buffer, const char *path)
+long platform_load_entire_file(void **buffer, const char *path)
 {
 	FILE *f = fopen(path, "r");
 	if (!f) return 0;
@@ -295,7 +336,7 @@ int64_t platform_load_entire_file(void **buffer, const char *path)
 		fclose(f);
 		return 0;
 	}
-	const int64_t size = ftell(f);
+	const long size = ftell(f);
 	if (size == -1) {
 		fclose(f);
 		return 0;
