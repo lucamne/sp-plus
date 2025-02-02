@@ -8,12 +8,11 @@ Audio production program designed to mimic the workflow of the Roland SP-404 MKI
 - Minimal dependecies
 - Low resource usage
 
-## Branches
-The main branch is currently more featureful and uses [raylib](https://github.com/raysan5/raylib) for the UI.
-
-The dev branch is currently in a state of feature regression, but has been redesigned to allow simpler porting by creating distinct platform-dependent and platform-independent layers. This branch only relies on the [smarc resampling library](https://audio-smarc.sourceforge.net/) as audio, graphics, and user input interface directly with native linux APIs (ALSA, XLib).
+## Design
+The program has a platform-dependent layer which requests services (audio and graphics) from the platform-independent code. This design should allow the program to be ported to a different operating system by writing a new platform layer that implements the API defined in `sp_plus.h`.
 
 ## Usage
+NOTE: Logic exists for these features, but will not be implemented until X11 input handling and rendering are implemented.
 - Trigger samples (Q, W, E, R). NOTE: Sample paths are hardcoded in sp-plus.c, sample loading from the UI is not yet implemented.
 - Kill all playing samples (X)
 - Waveform viewer zoom in/out (= / -)
@@ -29,19 +28,12 @@ The dev branch is currently in a state of feature regression, but has been redes
  
 
 ## Build
-NOTE: Build system will be improved or replaced once dev is at feature parity
 ### sp-plus dependencies
-Requires gcc, make, and ALSA dev library \
-Ubuntu: `sudo apt install build-essential libasound2-dev`
-### raylib dependencies
-Requires ALSA, MESA, X11 dev libraries \
-Ubuntu: `sudo apt install libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev libwayland-dev libxkbcommon-dev`.
-### Build Static Libraries
+Requires gcc, make, ALSA dev library, and X11 dev library \
+Ubuntu: `sudo apt install build-essential libasound2-dev libX11-dev`
+### Build smarc static library
 1. Navigate to sp-plus/libsrc/smarc
 2. Run `make lib`
-3. Navigate to sp-plus/libsrc/raylib/src
-4. Run `make`
-5. Move `sp-plus/libsrc/raylib/src/libraylib.a` to `sp-plus/lib/libraylib.a`
 ### Build sp-plus
 1. Navigate to sp-plus/src
 2. Run `make`
