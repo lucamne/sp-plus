@@ -31,10 +31,10 @@ The dev branch is currently in a state of feature regression, but has been redes
 ## Build
 NOTE: Build system will be improved or replaced once dev is at feature parity
 ### sp-plus dependencies
-Requires gcc, make, and ALSA dev library
+Requires gcc, make, and ALSA dev library \
 Ubuntu: `sudo apt install build-essential libasound2-dev`
 ### raylib dependencies
-Requires ALSA, MESA, X11 dev libraries
+Requires ALSA, MESA, X11 dev libraries \
 Ubuntu: `sudo apt install libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev libwayland-dev libxkbcommon-dev`.
 ### Build Static Libraries
 1. Navigate to sp-plus/libsrc/smarc
