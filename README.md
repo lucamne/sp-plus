@@ -12,7 +12,6 @@ Audio production program designed to mimic the workflow of the Roland SP-404 MKI
 The program has a platform-dependent layer which requests services (audio and graphics) from the platform-independent code. This design should allow the program to be ported to a different operating system by writing a new platform layer that implements the API defined in `sp_plus.h`.
 
 ## Usage
-NOTE: Logic exists for these features, but will not be implemented until X11 input handling and rendering are implemented.
 - Trigger samples (Q, W, E, R). NOTE: Sample paths are hardcoded in sp-plus.c, sample loading from the UI is not yet implemented.
 - Kill all playing samples (X)
 - Waveform viewer zoom in/out (= / -)
@@ -25,7 +24,9 @@ NOTE: Logic exists for these features, but will not be implemented until X11 inp
   - Increase/Decrease attack time (J / SHIFT + J)
   - Increase/Decrease release time (I / SHIFT + I)
   - Increase/Decrease playback speed (O / SHIFT + O)
- 
+
+NOTE: Logic exists for all these features, but some will not be implemented (or visible) until rendering is re-implemented. \
+For a small demo try loading the program, pressing Q to trigger the test sample and then increasing/decreasing speed with (O/SHIFT + O). 
 
 ## Build
 ### sp-plus dependencies

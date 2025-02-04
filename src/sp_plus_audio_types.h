@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 // registers sampler module state
+enum Pad { PAD_Q = 0, PAD_W, PAD_E, PAD_R, PAD_A, PAD_S, PAD_D, PAD_F };
 struct sampler {
 	struct sample** banks;		// all loaded samples [BANK][PAD]
 	int num_banks;

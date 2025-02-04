@@ -251,7 +251,7 @@ static void async_callback(snd_async_handler_t *ahandler)
 				}
 				first = 1;
 			}
-			fill_audio_buffer(	
+			sp_plus_fill_audio_buffer(	
 					sp_state,
 					my_areas[0].addr + 
 					offset * my_areas[0].step / 8,
@@ -322,7 +322,7 @@ static int async_init(
 			}
 
 			// implemented by non-platform code
-			fill_audio_buffer(	
+			sp_plus_fill_audio_buffer(	
 					sp_state, 
 					my_areas[0].addr + 
 					offset * my_areas[0].step / 8, 
@@ -357,7 +357,7 @@ snd_pcm_t *start_alsa(struct sp_state *sp_state)
 	int err;
 	snd_pcm_uframes_t buffer_size, period_size;
 	// TODO make device configurable
-	const char* dev_id = "plughw:2,0";
+	const char* dev_id = "plughw:1,0";
 	snd_pcm_t *pcm;
 
 	snd_pcm_hw_params_t* hwparams;

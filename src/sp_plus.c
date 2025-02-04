@@ -10,6 +10,9 @@
 #define WAV1 "../test/GREEN.wav"
 
 
+// TODO: may want to move this eventually
+// currently used in sp_plus_allocate_state and proccess_input_and_update
+static const int NUM_PADS = 8;
 
 /* Audio playback */
 
@@ -65,7 +68,7 @@ static int increment_frame(struct sample* s)
 		} else {
 			kill_sample(s);
 		}
-	// if sample playing backwards goes out of bounds
+		// if sample playing backwards goes out of bounds
 	} else if (next_frame < s->start_frame) {
 		if (s->loop_mode == PING_PONG) {
 			s->next_frame = s->start_frame;
@@ -75,7 +78,7 @@ static int increment_frame(struct sample* s)
 		} else {
 			kill_sample(s);
 		}
-	// logic for release of gate in gate trigger mode
+		// logic for release of gate in gate trigger mode
 	} else if (	s->gate_closed && 
 			s->gate_release_cnt + fabs(next_frame - s->next_frame) > 
 			s->gate_release) {
@@ -149,7 +152,7 @@ static void process_leaf_nodes(double out[], struct bus* b)
 
 // called by platform in async callback
 // relies on other audio playback functions
-int fill_audio_buffer(void *sp_state, void* buffer, int frames)
+int sp_plus_fill_audio_buffer(void *sp_state, void* buffer, int frames)
 {
 	struct bus master = ((struct sp_state *) sp_state)->master;
 	static double out[NUM_CHANNELS] = {0, 0};
@@ -300,7 +303,7 @@ static int load_sample_from_wav_buffer(struct sample *s, char *buffer, const lon
 	/* parse headers */
 	// check for 'RIFF' tag bytes [0, 3]
 	if (*(int32_t *) buffer ^ 0x46464952) return 1;
-	
+
 	// get master chunk_size 
 	buffer += word;
 	const int64_t mstr_ck_size = *(int32_t *) buffer;
@@ -421,24 +424,28 @@ static int load_sample_from_wav_buffer(struct sample *s, char *buffer, const lon
 
 // state allocation service called by platform
 // use this function for initializing debugging data
-void *allocate_sp_state(void)
+void *sp_plus_allocate_state(void)
 {
 	struct sp_state *s = calloc(1, sizeof(struct sp_state));
 	if (!s) return NULL;
 
 	// initialize a sample bank with 8 samples
+	s->sampler.zoom = 1;
 	s->sampler.num_banks = 1;
 	s->sampler.banks = calloc(1, sizeof(struct sample*));
 	s->sampler.banks[0] = calloc(8, sizeof(struct sample));
 
-	// load whole file into a buffer
+	// load whole file into a buffer for DEBUG
 	void *buffer = NULL;
 	const int64_t buf_bytes = platform_load_entire_file(&buffer, WAV1);
+
 	if (buf_bytes) {
 		if (!load_sample_from_wav_buffer(&(s->sampler.banks[0][0]), buffer, buf_bytes)) {
 			s->master.sample_in = &(s->sampler.banks[0][0]);
-			trigger_sample((s->master.sample_in));
+		} else {
+			fprintf(stderr, "File load failed: %s\n", WAV1);
 		}
+
 		platform_free_file_buffer(&buffer);
 	}
 
@@ -448,11 +455,157 @@ void *allocate_sp_state(void)
 
 /* Update and Rendering */
 
-void update_and_render_sp_plus(
+static void close_gate(struct sample* s)
+{
+	if (!s) return;
+	// check if gate should release
+	// probably need this playing check in case of a sample switch with no trigger (SHIFT)
+	if (!(s->gate && s->playing && !s->gate_closed)) return;
+
+	s->gate_release_cnt = 0.0;
+	s->gate_closed = true;
+	s->gate_close_gain = get_envelope_gain(s);
+	// if sample is playing forward compare to release
+	if (s->speed > 0) {
+		s->gate_release = s->release;
+		if (s->end_frame - s->next_frame < s->release)
+			s->gate_release_cnt = s->release - (s->end_frame - s->next_frame);
+		// if sample is playing backward compare to attack
+	} else {
+		s->gate_release = s->attack;
+		if (s->next_frame - s->start_frame < s->attack)
+			s->gate_release_cnt = s->release - (s->next_frame - s->start_frame);
+	}
+}
+
+// compresses envelope times if active length is shrunk
+static void squeeze_envelope(struct sample *s )
+{
+	if (s->end_frame - s->start_frame > s->attack + s->release) return;
+	float r = (float) s->attack / (s->release + s->attack);
+	s->attack = (s->end_frame - s->start_frame) * r;
+	s->release = s->end_frame - s->start_frame - s->attack;
+}
+
+// convert between semitone and playback speed
+static float st_to_speed(const float st) { return powf(2.0f, st / 12.0f); }
+static float speed_to_st(float speed) { return -12 * log2f(1.0f / speed); }
+
+static void process_input_and_update(struct sp_state *sp_state, struct key_input *input)
+{
+
+	/* sampler updates */
+
+	struct sample **banks = sp_state->sampler.banks;
+	// Allows us to redirect what sampler.active_sample pointer is pointing to
+	struct sample **active_sample = &(sp_state->sampler.active_sample);
+	int cur_bank = sp_state->sampler.cur_bank;
+
+	const char alt = input->shift_lock; 
+
+	/* sample triggering*/
+	// TODO: not all compilers will support binary literal, consider this
+	// Q Pad
+	if (input->key_pressed & 0b1 << KEY_Q) {
+		if (!alt) 
+			trigger_sample(&banks[cur_bank][PAD_Q]);
+		*active_sample = &banks[cur_bank][PAD_Q];
+	} else if (input->key_released & 0b1 << KEY_Q){
+		close_gate(&banks[cur_bank][PAD_Q]);
+	}
+	// W Pad
+	if (input->key_pressed & 0b1 << KEY_W) {
+		if (!alt) 
+			trigger_sample(&banks[cur_bank][PAD_W]);
+		*active_sample = &banks[cur_bank][PAD_W];
+	} else if (input->key_released & 0b1 << KEY_W){
+		close_gate(&banks[cur_bank][PAD_W]);
+	}
+	// E Pad
+	if (input->key_pressed & 0b1 << KEY_E) {
+		if (!alt) 
+			trigger_sample(&banks[cur_bank][PAD_E]);
+		*active_sample = &banks[cur_bank][PAD_E];
+	} else if (input->key_released & 0b1 << KEY_E){
+		close_gate(&banks[cur_bank][PAD_E]);
+	}
+	// R Pad
+	if (input->key_pressed & 0b1 << KEY_R) {
+		if (!alt) 
+			trigger_sample(&banks[cur_bank][PAD_R]);
+		*active_sample = &banks[cur_bank][PAD_R];
+	} else if (input->key_released & 0b1 << KEY_R){
+		close_gate(&banks[cur_bank][PAD_R]);
+	}
+
+	// Kill all samples
+	if (input->key_pressed & 0b1 << KEY_X) {
+		for (int b = 0; b < sp_state->sampler.num_banks; b++) {
+			for (int p = 0; p < NUM_PADS; p++) {
+				kill_sample(&banks[b][p]);
+			}
+		}
+	}
+
+	/* Active sample playback options */
+	struct sample *s = *active_sample;
+	if (!s) return;
+	// playback speed / pitch
+	if (input->key_pressed & 0b1 << KEY_O) {
+		const float st = speed_to_st(fabs(s->speed));
+		float speed;
+		if (alt) speed = st_to_speed(st - 1);
+		else speed = st_to_speed(st + 1);
+
+		static const float MAX_SPEED = 4.1f;
+		if (speed > 0.01f && speed < MAX_SPEED) { 
+			const char sign = s->speed > 0.0f ? 1 : -1;
+			s->speed = sign * speed;
+		}
+	}
+	// move start
+	if (input->key_down & 0b1 << KEY_U) {
+		int32_t f; 
+		int32_t inc = (float) s->num_frames / sp_state->sampler.zoom / 100;
+		if (inc == 0) inc = 1;
+		if (alt) f = s->start_frame - inc; 
+		else f = s->start_frame + inc;
+
+		if (f < 0) s->start_frame = 0;
+		else if (f >= s->end_frame) s->start_frame = s->end_frame - 1;
+		else s->start_frame = f;
+
+		squeeze_envelope(s);
+		if (!s->playing) kill_sample(s);
+		sp_state->sampler.zoom_focus = START;
+	}
+	// move end
+	if (input->key_down & 0b1 << KEY_I) {
+		int32_t f; 
+		int32_t inc = (float) s->num_frames / sp_state->sampler.zoom / 100;
+		if (inc == 0) inc = 1;
+		if (alt) f = s->end_frame - inc; 
+		else f = s->end_frame + inc;
+
+		if (f > s->num_frames) s->end_frame = s->num_frames;
+		else if (f <= s->start_frame) s->end_frame = s->start_frame + 1;
+		else s->end_frame = f;
+
+		squeeze_envelope(s);
+		if (!s->playing) kill_sample(s);
+		sp_state->sampler.zoom_focus = END;
+	}
+}
+
+
+void sp_plus_update_and_render(
 		void *sp_state, 
 		char *pixel_buf, 
 		int pixel_width,
 		int pixel_height,
-		int pixel_bytes)
+		int pixel_bytes,
+		struct key_input* input)
 {
+	process_input_and_update(sp_state, input);
+
 }

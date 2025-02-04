@@ -1,15 +1,24 @@
 PLATFORM STUFF
 ------------------------------------------
  Create Logging
- Handle Inputs
- Lock Framerate?
  Create build bash script to replace make?
 
-FILE
------------------------------------------
 
 SAMPLER
 ----------------------------------
+Reach Feature Parity with main
+	Reimplement gui
+		Create/Implement 2D Graphics library
+		Create/Implement text drawing
+	Implement update stuff
+		waveform viewer zoom
+		switch bank
+		set envelope
+		set playback mode
+		test move start and end once gui is remade
+		consider using press count for "analog" controls rather than: isDown?
+
+
 Sample Pad manipulation
 	swap sample pads
 	copy sample to another pad

@@ -64,7 +64,7 @@ void init_x_window(struct x_window_data *data)
 	attributes.background_pixel = 0;
 	attributes.colormap = 
 		XCreateColormap(display, root, visinfo.visual, AllocNone);
-	attributes.event_mask = StructureNotifyMask | KeyPressMask;
+	attributes.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask;
 	attributes.bit_gravity = StaticGravity;	// prevents flickering on window resize
 	unsigned long attribute_mask = 
 		CWBackPixel | CWColormap | CWEventMask | CWBitGravity;
@@ -125,31 +125,6 @@ void init_x_window(struct x_window_data *data)
 	data->pixel_bytes = pixel_bytes;
 	data->pixel_buf_size = pixel_buf_size;
 	data->pixel_buf = pixel_buf;
-}
-
-// converts sp_plus Key type to X keycode
-static int key_sp_to_x (Display *d, int key)
-{
-	switch (key) {
-		case KEY_E:
-			return XKeysymToKeycode(d, XK_E);
-		case KEY_I:
-			return XKeysymToKeycode(d, XK_I);
-		case KEY_O:
-			return XKeysymToKeycode(d, XK_O);
-		case KEY_Q:
-			return XKeysymToKeycode(d, XK_Q);
-		case KEY_R:
-			return XKeysymToKeycode(d, XK_R);
-		case KEY_U:
-			return XKeysymToKeycode(d, XK_U);
-		case KEY_W:
-			return XKeysymToKeycode(d, XK_W);
-		case KEY_X:
-			return XKeysymToKeycode(d, XK_X);
-		default:
-			return -1;
-	}
 }
 
 /* update and render loop lives here
@@ -228,52 +203,14 @@ int main (int argc, char **argv)
 	int size_change = 0;
 	int window_open = 1;
 
-	// bitfields to track key press state
-	char last_keystate[32];
-	XQueryKeymap(x_data.display, last_keystate);
+	// track key press state
+	uint32_t key_down_bitmap = 0;
 
 	while (window_open) {
 
-		/* keyboard input */
-		struct key_input input = {0};
-		char curr_keystate[32];
-		XQueryKeymap(x_data.display, curr_keystate);
-
-		for (int sp_key = 0; sp_key < KEY_Z; sp_key++) {
-
-			const int keycode = key_sp_to_x (x_data.display, sp_key);
-			if (keycode < 0 || keycode >= 256) continue;
-
-			const int i = keycode / 8;
-			const int state_mask = 0b1 << (keycode % 8);
-
-			// if key is down
-			if (curr_keystate[i] & state_mask) {
-				if (last_keystate[i] ^ state_mask){
-					input.key_pressed |= 0b1 << sp_key;
-				}
-				input.key_down |= 0b1 << sp_key;
-			}
-			// if key is up
-			else if (last_keystate[i] & state_mask && curr_keystate[i] ^ state_mask) {
-				input.key_released |= 0b1 << sp_key;
-			}
-
-		}
-
-		// TODO: could integrate with loop, idk if needed
-		// is shift key down
-		int r_shift = XKeysymToKeycode(x_data.display, XK_Shift_R);
-		int l_shift = XKeysymToKeycode(x_data.display, XK_Shift_L);
-		input.shift_lock = 
-			curr_keystate[r_shift / 8] & 0b1 << r_shift % 8 || 
-			curr_keystate[l_shift / 8] & 0b1 << l_shift % 8;
-
-		memcpy(last_keystate, curr_keystate, 32);
-
-
 		/* window events */
 		XEvent ev = {0};
+		struct key_input input = {0};
 
 		while(XPending(x_data.display) > 0) {
 			XNextEvent(x_data.display, &ev);
@@ -306,18 +243,33 @@ int main (int argc, char **argv)
 					} break;
 
 					// Get keyboard input
-					// TODO: might need to implement custom keyboard polling from socket
-					// awkward approach due to lag between key press and receiving event
+					// returning UTF-8 can be setup with XInput
 				case KeyPress:
 					{
 						XKeyPressedEvent *e = (XKeyPressedEvent *) &ev;
-						// Q
-						if (e->keycode == XKeysymToKeycode(x_data.display, XK_Q))
+						if (e->keycode == XKeysymToKeycode(x_data.display, XK_Q)) {
+							printf("Q pressed\n");
+							// if key is not already down then register press
+							if (key_down_bitmap ^ 0b1 << KEY_Q) {
+								input.key_pressed |= 0b1 << KEY_Q;
+								key_down_bitmap |= 0b1 << KEY_Q;
+							}
 							input.num_key_press[KEY_Q]++;
+						}
+					} break;
+
+				case KeyRelease:
+					{
+						XKeyPressedEvent *e = (XKeyPressedEvent *) &ev;
+						if (e->keycode == XKeysymToKeycode(x_data.display, XK_Q)) {
+							printf("Q released\n");
+							input.key_released |= 0b1 << KEY_Q;
+							// TODO: noty sure if this works correctly for all 32 bits
+							key_down_bitmap &= ~((uint32_t) 0b1 << KEY_Q);
+						}
 					} break;
 			}
 		}
-
 
 		// handle window size changes
 		// if window size changes reallocate pixel_buf
@@ -368,14 +320,14 @@ int main (int argc, char **argv)
 		while (clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &req, NULL));
 		clock_gettime(CLOCK_REALTIME, &start_time_rt);
 
-
+		
 		// TODO: performance queury and frame cap implementation kind junk.
 		// 	 figure out how to improve the design
 
 		/* output framerate after enforcing frame cap (Coarse) */
 		/*
-		   struct timespec end_time;
-		   clock_gettime(CLOCK_REALTIME, &end_time);
+		struct timespec end_time;
+		clock_gettime(CLOCK_REALTIME, &end_time);
 		// time elapsed in nano seconds
 		const long end_time_nsec = end_time.tv_sec * NSEC_PER_SEC + end_time.tv_nsec;
 		const long start_time_nsec = start_time_rt.tv_sec * NSEC_PER_SEC + start_time_rt.tv_nsec;
@@ -384,8 +336,8 @@ int main (int argc, char **argv)
 
 		// output timing data for debug, low precision
 		printf(		"%dms/f, %df/s\n", 
-		(int) (elapsed_time_nsec / NSEC_PER_MS), 
-		(int) (NSEC_PER_SEC / elapsed_time_nsec));
+				(int) (elapsed_time_nsec / NSEC_PER_MS), 
+				(int) (NSEC_PER_SEC / elapsed_time_nsec));
 		*/
 	}
 	// TODO should close alsa handles, may prevent popping

@@ -59,6 +59,7 @@ $(LIBTARGET): $(LIBOBJECTS)
 lib: $(STATICLIB)
 
 $(STATICLIB): $(LIBOBJECTS)
+	mkdir -p ../../lib
 	ar rcs $@ $^
 
 %.o: %.c
