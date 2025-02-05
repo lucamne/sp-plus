@@ -26,8 +26,6 @@ struct x_window_data {
 	char *pixel_buf;		// pixels to be rendered to window
 };
 
-
-
 // initializes a window and populates data struct
 // data struct will be initialized inside init_x_window
 void init_x_window(struct x_window_data *data)
@@ -127,26 +125,71 @@ void init_x_window(struct x_window_data *data)
 	data->pixel_buf = pixel_buf;
 }
 
+// TODO: MINUS and EQUAL needs testing
 // converts sp_plus Key type to X keycode
 static int key_sp_to_x (Display *d, int key)
 {
 	switch (key) {
+		case KEY_A:
+			return XKeysymToKeycode(d, XK_A);
+		case KEY_B:
+			return XKeysymToKeycode(d, XK_B);
+		case KEY_C:
+			return XKeysymToKeycode(d, XK_C);
+		case KEY_D:
+			return XKeysymToKeycode(d, XK_D);
 		case KEY_E:
 			return XKeysymToKeycode(d, XK_E);
+		case KEY_F:
+			return XKeysymToKeycode(d, XK_F);
+		case KEY_G:
+			return XKeysymToKeycode(d, XK_G);
+		case KEY_H:
+			return XKeysymToKeycode(d, XK_H);
 		case KEY_I:
 			return XKeysymToKeycode(d, XK_I);
+		case KEY_J:
+			return XKeysymToKeycode(d, XK_J);
+		case KEY_K:
+			return XKeysymToKeycode(d, XK_K);
+		case KEY_L:
+			return XKeysymToKeycode(d, XK_L);
+		case KEY_M:
+			return XKeysymToKeycode(d, XK_M);
+		case KEY_N:
+			return XKeysymToKeycode(d, XK_N);
 		case KEY_O:
 			return XKeysymToKeycode(d, XK_O);
+		case KEY_P:
+			return XKeysymToKeycode(d, XK_P);
 		case KEY_Q:
 			return XKeysymToKeycode(d, XK_Q);
 		case KEY_R:
 			return XKeysymToKeycode(d, XK_R);
+		case KEY_S:
+			return XKeysymToKeycode(d, XK_S);
+		case KEY_T:
+			return XKeysymToKeycode(d, XK_T);
 		case KEY_U:
 			return XKeysymToKeycode(d, XK_U);
+		case KEY_V:
+			return XKeysymToKeycode(d, XK_V);
 		case KEY_W:
 			return XKeysymToKeycode(d, XK_W);
 		case KEY_X:
 			return XKeysymToKeycode(d, XK_X);
+		case KEY_Y:
+			return XKeysymToKeycode(d, XK_Y);
+		case KEY_Z:
+			return XKeysymToKeycode(d, XK_Z);
+		case KEY_MINUS:
+			return XKeysymToKeycode(d, XK_minus);
+		case KEY_EQUAL:
+			return XKeysymToKeycode(d, XK_equal);
+		case KEY_SHIFT_L:
+			return XKeysymToKeycode(d, XK_Shift_L);
+		case KEY_SHIFT_R:
+			return XKeysymToKeycode(d, XK_Shift_R);
 		default:
 			return -1;
 	}
@@ -239,9 +282,9 @@ int main (int argc, char **argv)
 		char curr_keystate[32];
 		XQueryKeymap(x_data.display, curr_keystate);
 
-		for (int sp_key = 0; sp_key < KEY_Z; sp_key++) {
+		for (int sp_key = 0; sp_key < KEY_SHIFT_R; sp_key++) {
 
-			const int keycode = key_sp_to_x (x_data.display, sp_key);
+			const int keycode = key_sp_to_x(x_data.display, sp_key);
 			if (keycode < 0 || keycode >= 256) continue;
 
 			const int i = keycode / 8;
@@ -249,7 +292,7 @@ int main (int argc, char **argv)
 
 			// if key is down
 			if (curr_keystate[i] & state_mask) {
-				if (last_keystate[i] ^ state_mask){
+				if (!(last_keystate[i] & state_mask)){
 					input.key_pressed |= 0b1 << sp_key;
 				}
 				input.key_down |= 0b1 << sp_key;
@@ -260,15 +303,6 @@ int main (int argc, char **argv)
 			}
 
 		}
-
-		// TODO: could integrate with loop, idk if needed
-		// is shift key down
-		int r_shift = XKeysymToKeycode(x_data.display, XK_Shift_R);
-		int l_shift = XKeysymToKeycode(x_data.display, XK_Shift_L);
-		input.shift_lock = 
-			curr_keystate[r_shift / 8] & 0b1 << r_shift % 8 || 
-			curr_keystate[l_shift / 8] & 0b1 << l_shift % 8;
-
 		memcpy(last_keystate, curr_keystate, 32);
 
 
@@ -308,6 +342,7 @@ int main (int argc, char **argv)
 					// Get keyboard input
 					// TODO: might need to implement custom keyboard polling from socket
 					// awkward approach due to lag between key press and receiving event
+					/*
 				case KeyPress:
 					{
 						XKeyPressedEvent *e = (XKeyPressedEvent *) &ev;
@@ -315,6 +350,7 @@ int main (int argc, char **argv)
 						if (e->keycode == XKeysymToKeycode(x_data.display, XK_Q))
 							input.num_key_press[KEY_Q]++;
 					} break;
+					*/
 			}
 		}
 

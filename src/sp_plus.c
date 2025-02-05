@@ -455,6 +455,20 @@ void *sp_plus_allocate_state(void)
 
 /* Update and Rendering */
 
+// for convenience reads bitfield
+// TODO: could make macro if cleaner
+static char is_key_pressed(struct key_input *input, int key) 
+{return input->key_pressed & 0b1 << key ? 1 : 0;}
+static char is_key_released(struct key_input *input, int key) 
+{return input->key_released & 0b1 << key ? 1 : 0;}
+static char is_key_down(struct key_input *input, int key) 
+{return input->key_down & 0b1 << key ? 1 : 0;}
+// utility stuff
+static float st_to_speed(const float st) { return powf(2.0f, st / 12.0f); }
+static float speed_to_st(float speed) { return -12 * log2f(1.0f / speed); }
+static int32_t ms_to_frames(const float m) { return m * SAMPLE_RATE / 1000.0f; }
+static float frames_to_ms(const int32_t f) { return 1000.0f * f / SAMPLE_RATE; }
+
 static void close_gate(struct sample* s)
 {
 	if (!s) return;
@@ -487,71 +501,83 @@ static void squeeze_envelope(struct sample *s )
 	s->release = s->end_frame - s->start_frame - s->attack;
 }
 
-// convert between semitone and playback speed
-static float st_to_speed(const float st) { return powf(2.0f, st / 12.0f); }
-static float speed_to_st(float speed) { return -12 * log2f(1.0f / speed); }
-
 static void process_input_and_update(struct sp_state *sp_state, struct key_input *input)
 {
 
 	/* sampler updates */
 
-	struct sample **banks = sp_state->sampler.banks;
-	// Allows us to redirect what sampler.active_sample pointer is pointing to
-	struct sample **active_sample = &(sp_state->sampler.active_sample);
-	int cur_bank = sp_state->sampler.cur_bank;
+	struct sampler *sampler = &(sp_state->sampler);
+	struct sample **banks = sampler->banks;
+	struct sample **active_sample = &(sampler->active_sample);
+	int cur_bank = sampler->cur_bank;
 
-	const char alt = input->shift_lock; 
+	const char alt = is_key_down(input, KEY_SHIFT_L) || is_key_down(input, KEY_SHIFT_R); 
 
 	/* sample triggering*/
 	// TODO: not all compilers will support binary literal, consider this
 	// Q Pad
-	if (input->key_pressed & 0b1 << KEY_Q) {
+	if (is_key_pressed(input, KEY_Q)) {
 		if (!alt) 
 			trigger_sample(&banks[cur_bank][PAD_Q]);
 		*active_sample = &banks[cur_bank][PAD_Q];
-	} else if (input->key_released & 0b1 << KEY_Q){
+	} else if (is_key_released(input, KEY_Q)){
 		close_gate(&banks[cur_bank][PAD_Q]);
 	}
 	// W Pad
-	if (input->key_pressed & 0b1 << KEY_W) {
+	if (is_key_pressed(input, KEY_W)) {
 		if (!alt) 
 			trigger_sample(&banks[cur_bank][PAD_W]);
 		*active_sample = &banks[cur_bank][PAD_W];
-	} else if (input->key_released & 0b1 << KEY_W){
+	} else if (is_key_released(input, KEY_W)){
 		close_gate(&banks[cur_bank][PAD_W]);
 	}
 	// E Pad
-	if (input->key_pressed & 0b1 << KEY_E) {
+	if (is_key_pressed(input, KEY_E)) {
 		if (!alt) 
 			trigger_sample(&banks[cur_bank][PAD_E]);
 		*active_sample = &banks[cur_bank][PAD_E];
-	} else if (input->key_released & 0b1 << KEY_E){
+	} else if (is_key_released(input, KEY_E)){
 		close_gate(&banks[cur_bank][PAD_E]);
 	}
 	// R Pad
-	if (input->key_pressed & 0b1 << KEY_R) {
+	if (is_key_pressed(input, KEY_R)) {
 		if (!alt) 
 			trigger_sample(&banks[cur_bank][PAD_R]);
 		*active_sample = &banks[cur_bank][PAD_R];
-	} else if (input->key_released & 0b1 << KEY_R){
+	} else if (is_key_released(input, KEY_R)){
 		close_gate(&banks[cur_bank][PAD_R]);
 	}
 
 	// Kill all samples
-	if (input->key_pressed & 0b1 << KEY_X) {
-		for (int b = 0; b < sp_state->sampler.num_banks; b++) {
+	if (is_key_pressed(input, KEY_X)) {
+		for (int b = 0; b < sampler->num_banks; b++) {
 			for (int p = 0; p < NUM_PADS; p++) {
 				kill_sample(&banks[b][p]);
 			}
 		}
+	}
+	// TODO: Test once rendering is implemented
+	// waveform viewer zoom
+	if (is_key_pressed(input, KEY_EQUAL)) {
+		if (sampler->zoom <= 256) sampler->zoom *= 2;
+	}
+	if (is_key_pressed(input, KEY_MINUS)) {
+		sampler->zoom /= 2;
+		if (sampler->zoom < 1) sampler->zoom = 1;
+	}
+	// switch bank
+	if (is_key_pressed(input, KEY_B)) {
+		if (!alt && sampler->cur_bank + 1 < sampler->num_banks)
+			sampler->cur_bank += 1;
+		else if (sampler->cur_bank > 0 ) 
+			sampler->cur_bank -= 1;
 	}
 
 	/* Active sample playback options */
 	struct sample *s = *active_sample;
 	if (!s) return;
 	// playback speed / pitch
-	if (input->key_pressed & 0b1 << KEY_O) {
+	if (is_key_pressed(input, KEY_O)) {
 		const float st = speed_to_st(fabs(s->speed));
 		float speed;
 		if (alt) speed = st_to_speed(st - 1);
@@ -564,9 +590,9 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 		}
 	}
 	// move start
-	if (input->key_down & 0b1 << KEY_U) {
+	if (is_key_down(input, KEY_U)) {
 		int32_t f; 
-		int32_t inc = (float) s->num_frames / sp_state->sampler.zoom / 100;
+		int32_t inc = (float) s->num_frames / sampler->zoom / 100;
 		if (inc == 0) inc = 1;
 		if (alt) f = s->start_frame - inc; 
 		else f = s->start_frame + inc;
@@ -577,12 +603,12 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 
 		squeeze_envelope(s);
 		if (!s->playing) kill_sample(s);
-		sp_state->sampler.zoom_focus = START;
+		sampler->zoom_focus = START;
 	}
 	// move end
-	if (input->key_down & 0b1 << KEY_I) {
+	if (is_key_down(input, KEY_I)) {
 		int32_t f; 
-		int32_t inc = (float) s->num_frames / sp_state->sampler.zoom / 100;
+		int32_t inc = (float) s->num_frames / sampler->zoom / 100;
 		if (inc == 0) inc = 1;
 		if (alt) f = s->end_frame - inc; 
 		else f = s->end_frame + inc;
@@ -593,7 +619,46 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 
 		squeeze_envelope(s);
 		if (!s->playing) kill_sample(s);
-		sp_state->sampler.zoom_focus = END;
+		sampler->zoom_focus = END;
+	}
+
+	// set envelope
+	if (is_key_down(input, KEY_J)) {
+		float ms = frames_to_ms(s->attack);
+		if (alt) ms -= 2;
+		else ms += 2;
+		
+		if (ms >= 0) { 
+			const int32_t frames = ms_to_frames(ms);
+			if (s->end_frame - s->start_frame - s->release >= frames) {
+				s->attack = frames;
+			}
+		}
+	}
+	if (is_key_down(input, KEY_K)) {
+		float ms = frames_to_ms(s->release);
+		if (alt) ms -= 2; 
+		else ms += 2;
+
+		if (ms >= 0) {
+			const int32_t frames = ms_to_frames(ms);
+			if (s->end_frame - s->start_frame - s->attack >= frames) {
+				s->release = frames;
+			}
+		}
+	}
+
+	// set playback modes
+	if (is_key_pressed(input, KEY_G)) {
+		s->gate = !s->gate;
+	}
+	if (is_key_pressed(input, KEY_V)) {
+		s->reverse = !s->reverse;
+		s->speed *= -1.0;
+	}
+	if (is_key_pressed(input, KEY_L)) {
+		if (s->loop_mode == PING_PONG) s->loop_mode = LOOP_OFF;
+		else s->loop_mode += 1;
 	}
 }
 

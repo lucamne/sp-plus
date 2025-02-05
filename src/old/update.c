@@ -94,6 +94,7 @@ void update_sampler(struct sampler* sampler, struct system* sys)
 			}
 		}
 	}
+
 	// waveform viewer zoom
 	if (IsKeyPressed(KEY_EQUAL)) {
 		if (sampler->zoom <= 256) sampler->zoom *= 2;

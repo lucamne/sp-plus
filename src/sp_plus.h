@@ -9,12 +9,12 @@
 #define SAMPLE_RATE 48000
 
 // key board input types and constants
-#define NUM_KEYS 26
+#define NUM_KEYS 30
 
 enum Key {
 	KEY_A, KEY_B, KEY_C, KEY_D, KEY_E, KEY_F, KEY_G, KEY_H, KEY_I, KEY_J, KEY_K, 
 	KEY_L, KEY_M, KEY_N, KEY_O, KEY_P, KEY_Q, KEY_R, KEY_S, KEY_T, KEY_U, KEY_V,
-	KEY_W, KEY_X, KEY_Y, KEY_Z
+	KEY_W, KEY_X, KEY_Y, KEY_Z, KEY_EQUAL, KEY_MINUS, KEY_SHIFT_L, KEY_SHIFT_R
 };
 
 struct key_input {
@@ -23,7 +23,6 @@ struct key_input {
 	uint32_t key_released;			// bitmap, was key released this frame
 	uint32_t key_down;			// bitmap, is key currently held down
 
-	char shift_lock;			// is shift down or was capslock pressed
 	int num_key_press[NUM_KEYS];		// how many times did keypress event occur
 };						// during frame
 

@@ -25,8 +25,8 @@ The program has a platform-dependent layer which requests services (audio and gr
   - Increase/Decrease release time (I / SHIFT + I)
   - Increase/Decrease playback speed (O / SHIFT + O)
 
-NOTE: Logic exists for all these features, but some will not be implemented (or visible) until rendering is re-implemented. \
-For a small demo try loading the program, pressing Q to trigger the test sample and then increasing/decreasing speed with (O/SHIFT + O). 
+NOTE: All these features are implemented but some are not viewable given rendering is not yet re-implemented. \
+For a small demo try loading the program, pressing Q to trigger the test sample and then mess around with playback speed and reverse.
 
 ## Build
 ### sp-plus dependencies
