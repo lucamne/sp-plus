@@ -26,6 +26,7 @@ struct key_input {
 	int num_key_press[NUM_KEYS];		// how many times did keypress event occur
 };						// during frame
 
+
 /* Calls from platform to sp_plus service */
 
 // allocates and initializes program state
@@ -43,7 +44,6 @@ void sp_plus_update_and_render(
 		int pixel_height,
 		int pixel_bytes,
 		struct key_input* input);
-
 
 /* Calls from sp_plus service to platform */
 

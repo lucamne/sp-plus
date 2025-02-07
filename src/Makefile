@@ -1,5 +1,5 @@
 TARGET = ../build/sp-plus
-SRC := linux_platform.c sp_plus.c
+SRC := platform/linux_platform.c sp_plus.c render.c
 
 CFLAGS := -g -Wextra
 # CFLAGS = -03

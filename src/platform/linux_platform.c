@@ -1,4 +1,4 @@
-#include "sp_plus.h"
+#include "../sp_plus.h"
 
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
@@ -32,8 +32,8 @@ void init_x_window(struct x_window_data *data)
 {
 	// TODO store these somewhere better
 	// create display connection
-	const int width = 800;
-	const int height = 600;
+	const int width = 1280;
+	const int height = 720;
 
 	Display *display = XOpenDisplay(NULL);
 	if (!display) {
@@ -262,7 +262,7 @@ int main (int argc, char **argv)
 	// 		signal interrupt
 
 	// frame cap data
-	const int target_fps = 60;
+	const int target_fps = 30;
 	const long target_npf = (long) NSEC_PER_SEC / target_fps;
 	struct timespec start_time_rt;
 	clock_gettime(CLOCK_REALTIME, &start_time_rt);
@@ -370,6 +370,7 @@ int main (int argc, char **argv)
 					x_data.pixel_bytes * 8, 0);
 		}
 
+		/*
 		// draw some temporary stuff to the screen
 		const int pitch = x_data.width * x_data.pixel_bytes;
 		for (int y = 0; y < x_data.height; y++) {
@@ -380,6 +381,7 @@ int main (int argc, char **argv)
 				else *p = 0;
 			}
 		} 
+		*/
 
 		// call to sp_plus update and render service
 		sp_plus_update_and_render(
@@ -402,7 +404,6 @@ int main (int argc, char **argv)
 
 		// sleep until request time is reached then reset start_time
 		while (clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &req, NULL));
-		clock_gettime(CLOCK_REALTIME, &start_time_rt);
 
 
 		// TODO: performance queury and frame cap implementation kind junk.
@@ -410,8 +411,8 @@ int main (int argc, char **argv)
 
 		/* output framerate after enforcing frame cap (Coarse) */
 		/*
-		   struct timespec end_time;
-		   clock_gettime(CLOCK_REALTIME, &end_time);
+		struct timespec end_time;
+		clock_gettime(CLOCK_REALTIME, &end_time);
 		// time elapsed in nano seconds
 		const long end_time_nsec = end_time.tv_sec * NSEC_PER_SEC + end_time.tv_nsec;
 		const long start_time_nsec = start_time_rt.tv_sec * NSEC_PER_SEC + start_time_rt.tv_nsec;
@@ -420,9 +421,11 @@ int main (int argc, char **argv)
 
 		// output timing data for debug, low precision
 		printf(		"%dms/f, %df/s\n", 
-		(int) (elapsed_time_nsec / NSEC_PER_MS), 
-		(int) (NSEC_PER_SEC / elapsed_time_nsec));
-		*/
+				(int) (elapsed_time_nsec / NSEC_PER_MS), 
+				(int) (NSEC_PER_SEC / elapsed_time_nsec));
+				*/
+
+		clock_gettime(CLOCK_REALTIME, &start_time_rt);
 	}
 	// TODO should close alsa handles, may prevent popping
 	return 0;

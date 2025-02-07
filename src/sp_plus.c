@@ -1,5 +1,6 @@
 #include "sp_plus.h"
-#include "sp_plus_audio_types.h"
+#include "audio_types.h"
+#include "render.h"
 #include "smarc.h"
 
 #include <math.h>
@@ -8,7 +9,6 @@
 
 // Wav paths for testing
 #define WAV1 "../test/GREEN.wav"
-
 
 // TODO: may want to move this eventually
 // currently used in sp_plus_allocate_state and proccess_input_and_update
@@ -434,6 +434,7 @@ void *sp_plus_allocate_state(void)
 	s->sampler.num_banks = 1;
 	s->sampler.banks = calloc(1, sizeof(struct sample*));
 	s->sampler.banks[0] = calloc(8, sizeof(struct sample));
+	s->sampler.max_vert = 4000;
 
 	// load whole file into a buffer for DEBUG
 	void *buffer = NULL;
@@ -662,6 +663,120 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 	}
 }
 
+/* Drawing */
+static void draw_waveform(
+		const struct sp_state *sp_state, 
+		const struct pixel_buffer *buffer, 
+		const vec2i wave_origin, const int width, 
+		const int max_height)
+{
+	const struct sampler sampler = sp_state->sampler;
+	const struct sample *s = sampler.active_sample;
+	if (!s) return;
+
+	// calculate zoom parameters
+	const int32_t frames_to_draw = s->num_frames / sampler.zoom;
+	const int32_t focused_frame = sampler.zoom_focus == END ? 
+		s->end_frame : s->start_frame;
+
+	int32_t first_frame_to_draw;
+	if (focused_frame < frames_to_draw / 2)
+		first_frame_to_draw = 0;
+	else if (	s->num_frames - focused_frame <= 
+			frames_to_draw - (frames_to_draw / 2))
+		first_frame_to_draw = s->num_frames - frames_to_draw;
+	else
+		first_frame_to_draw = focused_frame - frames_to_draw / 2;
+
+	// calculate vertices to render and frames per vertex
+	int num_vertices;
+	float frame_freq;
+	if (frames_to_draw > sampler.max_vert) { 
+		num_vertices = sampler.max_vert;
+		frame_freq = (float) frames_to_draw / (float) sampler.max_vert;
+	} else {
+		num_vertices = frames_to_draw;
+		frame_freq = 1.0f;
+	}
+	if (num_vertices < 2) return;
+	const float vertex_spacing = width / (float) (num_vertices);
+
+	// draw wave lines
+	{
+		int32_t frame = first_frame_to_draw; 
+		double sum = 
+			(s->data[frame * NUM_CHANNELS] + 
+			 s->data[frame * NUM_CHANNELS + 1]) / 2.0;
+		int y = roundf((float) sum * (max_height / 2.0f) + wave_origin.y);
+		int x = wave_origin.x;
+		vec2i last_vertex = {x, y};
+
+		for (int i = 1; i < num_vertices; i++) {
+			frame = first_frame_to_draw + i * (int) frame_freq;
+			sum = (s->data[frame * NUM_CHANNELS] + s->data[frame * NUM_CHANNELS + 1]) / 2.0;
+
+			y = roundf((float) sum * (max_height / 2.0f) + wave_origin.y);
+			x = roundf((float) i * vertex_spacing + wave_origin.x);
+
+			const vec2i curr_vertex = {x, y};
+			draw_line(buffer, last_vertex, curr_vertex, WHITE);
+			last_vertex = curr_vertex;
+		}
+	}
+
+
+	// draw markers
+	if (	s->next_frame >= first_frame_to_draw && 
+			s->next_frame < first_frame_to_draw + frames_to_draw) {
+
+		const int play_x = 
+			roundf(((int) (s->next_frame - first_frame_to_draw) / frame_freq) * 
+			vertex_spacing + wave_origin.x);
+		const vec2i startv = {play_x, roundf(wave_origin.y - max_height / 2.0f)};
+		const vec2i endv = {play_x, roundf(wave_origin.y + max_height / 2.0f)};
+		draw_line(buffer, startv, endv, RED);
+	}
+	if (	s->start_frame >= first_frame_to_draw && 
+			s->start_frame < first_frame_to_draw + frames_to_draw) {
+
+		const int start_x = 
+			roundf(((int) (s->start_frame - first_frame_to_draw) / frame_freq) * 
+			vertex_spacing + wave_origin.x);
+		const vec2i startv = {start_x, roundf(wave_origin.y - max_height / 2.0f)};
+		const vec2i endv = {start_x, roundf(wave_origin.y + max_height / 2.0f)};
+		draw_line(buffer, startv, endv, GREEN);
+	}
+	if (	s->end_frame >= first_frame_to_draw && 
+			s->end_frame <= first_frame_to_draw + frames_to_draw) {
+
+		const int end_x = 
+			roundf(((int) (s->end_frame - first_frame_to_draw) / frame_freq) * 
+			vertex_spacing + wave_origin.x);
+		const vec2i startv = {end_x, roundf(wave_origin.y - max_height / 2.0f)};
+		const vec2i endv = {end_x, roundf(wave_origin.y + max_height / 2.0f)};
+		draw_line(buffer, startv, endv, GREEN);
+	}
+}
+
+static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buffer *buffer)
+{
+	// sets position of sampler on screen
+	const vec2i origin = {0, 0};
+
+	const int BORDER_W = 800;
+	const int BORDER_H = 450;
+	const int VIEWER_W = BORDER_W * 3 / 4;
+	const int VIEWER_H = BORDER_H * 2 / 3;
+	const vec2i WAVE_ORIGIN = {origin.x + 10, origin.y + VIEWER_H / 2};
+
+	// border pane
+	draw_rec_outline(buffer, origin, BORDER_W, BORDER_H, WHITE);
+	// waveform viewer pane
+	draw_rec_outline(buffer, origin, VIEWER_W, VIEWER_H, WHITE);
+
+	// draw waveform
+	draw_waveform(sp_state, buffer, WAVE_ORIGIN, VIEWER_W - 20, VIEWER_H - 20);
+}
 
 void sp_plus_update_and_render(
 		void *sp_state, 
@@ -673,4 +788,8 @@ void sp_plus_update_and_render(
 {
 	process_input_and_update(sp_state, input);
 
+	struct pixel_buffer buffer = { pixel_buf, pixel_bytes, pixel_width, pixel_height };
+	clear_pixel_buffer(&buffer);
+
+	draw_sampler(sp_state, &buffer);
 }
