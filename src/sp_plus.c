@@ -443,6 +443,8 @@ void *sp_plus_allocate_state(void)
 	if (buf_bytes) {
 		if (!load_sample_from_wav_buffer(&(s->sampler.banks[0][0]), buffer, buf_bytes)) {
 			s->master.sample_in = &(s->sampler.banks[0][0]);
+			// TODO consider where path should be set
+			s->sampler.banks[0][0].path = WAV1;
 		} else {
 			fprintf(stderr, "File load failed: %s\n", WAV1);
 		}
@@ -454,7 +456,7 @@ void *sp_plus_allocate_state(void)
 	return (void *) s;
 }
 
-/* Update and Rendering */
+/* Update */
 
 // for convenience reads bitfield
 // TODO: could make macro if cleaner
@@ -560,7 +562,8 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 	// TODO: Test once rendering is implemented
 	// waveform viewer zoom
 	if (is_key_pressed(input, KEY_EQUAL)) {
-		if (sampler->zoom <= 256) sampler->zoom *= 2;
+		printf("=: %d\n", input->num_key_press[KEY_EQUAL]);
+		if (sampler->zoom <= 1024) sampler->zoom *= 2;
 	}
 	if (is_key_pressed(input, KEY_MINUS)) {
 		sampler->zoom /= 2;
@@ -591,9 +594,9 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 		}
 	}
 	// move start
-	if (is_key_down(input, KEY_U)) {
+	if (input->num_key_press[KEY_U]) {
 		int32_t f; 
-		int32_t inc = (float) s->num_frames / sampler->zoom / 100;
+		int32_t inc = (float) input->num_key_press[KEY_U] * s->num_frames / sampler->zoom / 100;
 		if (inc == 0) inc = 1;
 		if (alt) f = s->start_frame - inc; 
 		else f = s->start_frame + inc;
@@ -607,9 +610,9 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 		sampler->zoom_focus = START;
 	}
 	// move end
-	if (is_key_down(input, KEY_I)) {
+	if (input->num_key_press[KEY_I]) {
 		int32_t f; 
-		int32_t inc = (float) s->num_frames / sampler->zoom / 100;
+		int32_t inc = (float) input->num_key_press[KEY_I] * s->num_frames / sampler->zoom / 100;
 		if (inc == 0) inc = 1;
 		if (alt) f = s->end_frame - inc; 
 		else f = s->end_frame + inc;
@@ -663,7 +666,7 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 	}
 }
 
-/* Drawing */
+/* Rendering */
 static void draw_waveform(
 		const struct sp_state *sp_state, 
 		const struct pixel_buffer *buffer, 
@@ -773,9 +776,20 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 	draw_rec_outline(buffer, origin, BORDER_W, BORDER_H, WHITE);
 	// waveform viewer pane
 	draw_rec_outline(buffer, origin, VIEWER_W, VIEWER_H, WHITE);
+	// draw control pane
+	const vec2i control_s = {origin.x + VIEWER_W - 1, origin.y + VIEWER_H - 1};
+	const vec2i control_e = {origin.x + VIEWER_W - 1, origin.y + BORDER_H - 1};
+	draw_line(buffer, control_s, control_e, WHITE);
 
 	// draw waveform
 	draw_waveform(sp_state, buffer, WAVE_ORIGIN, VIEWER_W - 20, VIEWER_H - 20);
+
+	// info
+	/*
+	char txt[64];
+	snprintf(txt, 64, "filename: %s", s->path);
+	draw_text(buffer, txt, strlen(txt), origin, FONT_SIZE, WHITE);
+	*/
 }
 
 void sp_plus_update_and_render(

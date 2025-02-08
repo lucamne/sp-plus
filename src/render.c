@@ -6,7 +6,7 @@
 
 /* Core */
 // set pixel at v to white
-static void set_pixel(const struct pixel_buffer *buffer, const vec2i v, const color c)
+static void set_pixel(const struct pixel_buffer *buffer, vec2i v, color c)
 {
 	if (v.x >= SCRN_H || v.x < 0 || v.y >= SCRN_H || v.y < 0) return;
 	if (!buffer || !buffer->buffer) return;
@@ -27,7 +27,7 @@ void clear_pixel_buffer(const struct pixel_buffer *buffer)
 	memset(buffer->buffer, 0, buffer->width * buffer->height * buffer->pixel_size);
 }
 
-void fill_pixel_buffer(const struct pixel_buffer *buffer, const color c)
+void fill_pixel_buffer(const struct pixel_buffer *buffer, color c)
 {
 	for (int i = 0; i < buffer->width * buffer->height; i++) {
 		memcpy(buffer->buffer + i * buffer->pixel_size, &c, buffer->pixel_size);
@@ -36,9 +36,7 @@ void fill_pixel_buffer(const struct pixel_buffer *buffer, const color c)
 
 
 // TODO can make more effecient if straight line
-void draw_line(
-		const struct pixel_buffer *buffer, 
-		const vec2i start, const vec2i end, const color c)
+void draw_line(const struct pixel_buffer *buffer, vec2i start, vec2i end, color c)
 {
 	const int dx = start.x - end.x;
 	const int dy = start.y - end.y;
@@ -54,10 +52,7 @@ void draw_line(
 	}
 }
 
-void draw_rec_outline(
-		const struct pixel_buffer *buffer, 
-		const vec2i start, const int width, 
-		const int height, const color c)
+void draw_rec_outline(const struct pixel_buffer *buffer, vec2i start, int width, int height, color c)
 {
 	const vec2i p2 = {start.x + width - 1, start.y};
 	const vec2i p3 = {start.x + width - 1, start.y + height - 1};
@@ -69,10 +64,7 @@ void draw_rec_outline(
 	draw_line(buffer, p4, start, c);
 }
 
-void draw_rec(
-		const struct pixel_buffer *buffer, 
-		const vec2i start, const int width, 
-		const int height, const color c)
+void draw_rec(const struct pixel_buffer *buffer, vec2i start, int width, int height, color c)
 {
 	const vec2i p2 = {start.x + width - 1, start.y};
 	for (int i = 0; i < height; i++) {
@@ -80,4 +72,8 @@ void draw_rec(
 		const vec2i e = {p2.x, p2.y + i};
 		draw_line(buffer, s, e, c);
 	}
+}
+
+void draw_text(const struct pixel_buffer *buffer, const char *txt, int num_chars, vec2i origin, int font_size, color c)
+{
 }

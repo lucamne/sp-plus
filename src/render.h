@@ -38,5 +38,6 @@ void fill_pixel_buffer(const struct pixel_buffer *buffer, color c);
 void draw_line(const struct pixel_buffer *buffer, vec2i start, vec2i end, color c);
 void draw_rec_outline(const struct pixel_buffer *buffer, vec2i start, int width, int height, color c);
 void draw_rec(const struct pixel_buffer *buffer, vec2i start, int width, int height, color c);
+void draw_text(const struct pixel_buffer *buffer, const char *txt, int num_chars, vec2i origin, int font_size, color c);
 
 #endif

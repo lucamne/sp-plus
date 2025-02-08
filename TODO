@@ -11,15 +11,7 @@ SAMPLER
 ----------------------------------
 Reach Feature Parity with main
 	Reimplement gui
-		Create/Implement 2D Graphics library
 		Create/Implement text drawing
-	Implement update stuff
-		waveform viewer zoom
-		switch bank
-		set envelope
-		set playback mode
-		test move start and end once gui is remade
-		consider using press count for "analog" controls rather than: isDown?
 
 
 Sample Pad manipulation
@@ -41,7 +33,7 @@ implement delay then repeat controls
 
 MISC
 ----------------------------------
-Add help screen
+Add help / command line
 Add error log screen
 
 TESTING

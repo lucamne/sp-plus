@@ -3,7 +3,6 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
-#include <assert.h>
 
 #include "linux_audio.c"
 
@@ -25,6 +24,143 @@ struct x_window_data {
 	int pixel_buf_size;		// width * height * pixel_bytes
 	char *pixel_buf;		// pixels to be rendered to window
 };
+
+// converts X keycode to sp_plus Key type
+static int key_x_to_sp(XKeyEvent *ev)
+{
+	switch (XLookupKeysym(ev, 1)) {
+		case XK_A:
+			return KEY_A;
+		case XK_B:
+			return KEY_B;
+		case XK_C:
+			return KEY_C;
+		case XK_D:
+			return KEY_D;
+		case XK_E:
+			return KEY_E;
+		case XK_F:
+			return KEY_F;
+		case XK_G:
+			return KEY_G;
+		case XK_H:
+			return KEY_H;
+		case XK_I:
+			return KEY_I;
+		case XK_J:
+			return KEY_J;
+		case XK_K:
+			return KEY_K;
+		case XK_L:
+			return KEY_L;
+		case XK_M:
+			return KEY_M;
+		case XK_N:
+			return KEY_N;
+		case XK_O:
+			return KEY_O;
+		case XK_P:
+			return KEY_P;
+		case XK_Q:
+			return KEY_Q;
+		case XK_R:
+			return KEY_R;
+		case XK_S:
+			return KEY_S;
+		case XK_T:
+			return KEY_T;
+		case XK_U:
+			return KEY_U;
+		case XK_V:
+			return KEY_V;
+		case XK_W:
+			return KEY_W;
+		case XK_X:
+			return KEY_X;
+		case XK_Y:
+			return KEY_Y;
+		case XK_Z:
+			return KEY_Z;
+		case XK_minus:
+			return KEY_MINUS;
+		case XK_equal:
+			return KEY_EQUAL;
+		case XK_Shift_L:
+			return KEY_SHIFT_L;
+		case XK_Shift_R:
+			return KEY_SHIFT_R;
+		default:
+			return -1;
+	}
+}
+// converts sp_plus Key type to X keycode
+static int key_sp_to_x (Display *d, int key)
+{
+	switch (key) {
+		case KEY_A:
+			return XKeysymToKeycode(d, XK_A);
+		case KEY_B:
+			return XKeysymToKeycode(d, XK_B);
+		case KEY_C:
+			return XKeysymToKeycode(d, XK_C);
+		case KEY_D:
+			return XKeysymToKeycode(d, XK_D);
+		case KEY_E:
+			return XKeysymToKeycode(d, XK_E);
+		case KEY_F:
+			return XKeysymToKeycode(d, XK_F);
+		case KEY_G:
+			return XKeysymToKeycode(d, XK_G);
+		case KEY_H:
+			return XKeysymToKeycode(d, XK_H);
+		case KEY_I:
+			return XKeysymToKeycode(d, XK_I);
+		case KEY_J:
+			return XKeysymToKeycode(d, XK_J);
+		case KEY_K:
+			return XKeysymToKeycode(d, XK_K);
+		case KEY_L:
+			return XKeysymToKeycode(d, XK_L);
+		case KEY_M:
+			return XKeysymToKeycode(d, XK_M);
+		case KEY_N:
+			return XKeysymToKeycode(d, XK_N);
+		case KEY_O:
+			return XKeysymToKeycode(d, XK_O);
+		case KEY_P:
+			return XKeysymToKeycode(d, XK_P);
+		case KEY_Q:
+			return XKeysymToKeycode(d, XK_Q);
+		case KEY_R:
+			return XKeysymToKeycode(d, XK_R);
+		case KEY_S:
+			return XKeysymToKeycode(d, XK_S);
+		case KEY_T:
+			return XKeysymToKeycode(d, XK_T);
+		case KEY_U:
+			return XKeysymToKeycode(d, XK_U);
+		case KEY_V:
+			return XKeysymToKeycode(d, XK_V);
+		case KEY_W:
+			return XKeysymToKeycode(d, XK_W);
+		case KEY_X:
+			return XKeysymToKeycode(d, XK_X);
+		case KEY_Y:
+			return XKeysymToKeycode(d, XK_Y);
+		case KEY_Z:
+			return XKeysymToKeycode(d, XK_Z);
+		case KEY_MINUS:
+			return XKeysymToKeycode(d, XK_minus);
+		case KEY_EQUAL:
+			return XKeysymToKeycode(d, XK_equal);
+		case KEY_SHIFT_L:
+			return XKeysymToKeycode(d, XK_Shift_L);
+		case KEY_SHIFT_R:
+			return XKeysymToKeycode(d, XK_Shift_R);
+		default:
+			return -1;
+	}
+}
 
 // initializes a window and populates data struct
 // data struct will be initialized inside init_x_window
@@ -125,75 +261,7 @@ void init_x_window(struct x_window_data *data)
 	data->pixel_buf = pixel_buf;
 }
 
-// TODO: MINUS and EQUAL needs testing
-// converts sp_plus Key type to X keycode
-static int key_sp_to_x (Display *d, int key)
-{
-	switch (key) {
-		case KEY_A:
-			return XKeysymToKeycode(d, XK_A);
-		case KEY_B:
-			return XKeysymToKeycode(d, XK_B);
-		case KEY_C:
-			return XKeysymToKeycode(d, XK_C);
-		case KEY_D:
-			return XKeysymToKeycode(d, XK_D);
-		case KEY_E:
-			return XKeysymToKeycode(d, XK_E);
-		case KEY_F:
-			return XKeysymToKeycode(d, XK_F);
-		case KEY_G:
-			return XKeysymToKeycode(d, XK_G);
-		case KEY_H:
-			return XKeysymToKeycode(d, XK_H);
-		case KEY_I:
-			return XKeysymToKeycode(d, XK_I);
-		case KEY_J:
-			return XKeysymToKeycode(d, XK_J);
-		case KEY_K:
-			return XKeysymToKeycode(d, XK_K);
-		case KEY_L:
-			return XKeysymToKeycode(d, XK_L);
-		case KEY_M:
-			return XKeysymToKeycode(d, XK_M);
-		case KEY_N:
-			return XKeysymToKeycode(d, XK_N);
-		case KEY_O:
-			return XKeysymToKeycode(d, XK_O);
-		case KEY_P:
-			return XKeysymToKeycode(d, XK_P);
-		case KEY_Q:
-			return XKeysymToKeycode(d, XK_Q);
-		case KEY_R:
-			return XKeysymToKeycode(d, XK_R);
-		case KEY_S:
-			return XKeysymToKeycode(d, XK_S);
-		case KEY_T:
-			return XKeysymToKeycode(d, XK_T);
-		case KEY_U:
-			return XKeysymToKeycode(d, XK_U);
-		case KEY_V:
-			return XKeysymToKeycode(d, XK_V);
-		case KEY_W:
-			return XKeysymToKeycode(d, XK_W);
-		case KEY_X:
-			return XKeysymToKeycode(d, XK_X);
-		case KEY_Y:
-			return XKeysymToKeycode(d, XK_Y);
-		case KEY_Z:
-			return XKeysymToKeycode(d, XK_Z);
-		case KEY_MINUS:
-			return XKeysymToKeycode(d, XK_minus);
-		case KEY_EQUAL:
-			return XKeysymToKeycode(d, XK_equal);
-		case KEY_SHIFT_L:
-			return XKeysymToKeycode(d, XK_Shift_L);
-		case KEY_SHIFT_R:
-			return XKeysymToKeycode(d, XK_Shift_R);
-		default:
-			return -1;
-	}
-}
+
 
 /* update and render loop lives here
  * calls sp_plus services to get audio visual output */
@@ -342,15 +410,12 @@ int main (int argc, char **argv)
 					// Get keyboard input
 					// TODO: might need to implement custom keyboard polling from socket
 					// awkward approach due to lag between key press and receiving event
-					/*
 				case KeyPress:
 					{
 						XKeyPressedEvent *e = (XKeyPressedEvent *) &ev;
-						// Q
-						if (e->keycode == XKeysymToKeycode(x_data.display, XK_Q))
-							input.num_key_press[KEY_Q]++;
+						int key = key_x_to_sp(e);
+						if (key != -1) input.num_key_press[key]++;
 					} break;
-					*/
 			}
 		}
 
@@ -374,12 +439,12 @@ int main (int argc, char **argv)
 		// draw some temporary stuff to the screen
 		const int pitch = x_data.width * x_data.pixel_bytes;
 		for (int y = 0; y < x_data.height; y++) {
-			char *row = x_data.pixel_buf + (y*pitch);
-			for (int x = 0; x < x_data.width; x++) {
-				unsigned int *p = (unsigned int *) (row + x * x_data.pixel_bytes);
-				if (x % 16 && y % 16) *p = 0xffffffff;
-				else *p = 0;
-			}
+		char *row = x_data.pixel_buf + (y*pitch);
+		for (int x = 0; x < x_data.width; x++) {
+		unsigned int *p = (unsigned int *) (row + x * x_data.pixel_bytes);
+		if (x % 16 && y % 16) *p = 0xffffffff;
+		else *p = 0;
+		}
 		} 
 		*/
 
@@ -411,8 +476,8 @@ int main (int argc, char **argv)
 
 		/* output framerate after enforcing frame cap (Coarse) */
 		/*
-		struct timespec end_time;
-		clock_gettime(CLOCK_REALTIME, &end_time);
+		   struct timespec end_time;
+		   clock_gettime(CLOCK_REALTIME, &end_time);
 		// time elapsed in nano seconds
 		const long end_time_nsec = end_time.tv_sec * NSEC_PER_SEC + end_time.tv_nsec;
 		const long start_time_nsec = start_time_rt.tv_sec * NSEC_PER_SEC + start_time_rt.tv_nsec;
@@ -421,9 +486,9 @@ int main (int argc, char **argv)
 
 		// output timing data for debug, low precision
 		printf(		"%dms/f, %df/s\n", 
-				(int) (elapsed_time_nsec / NSEC_PER_MS), 
-				(int) (NSEC_PER_SEC / elapsed_time_nsec));
-				*/
+		(int) (elapsed_time_nsec / NSEC_PER_MS), 
+		(int) (NSEC_PER_SEC / elapsed_time_nsec));
+		*/
 
 		clock_gettime(CLOCK_REALTIME, &start_time_rt);
 	}
