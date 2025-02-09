@@ -24,6 +24,9 @@ struct pixel_buffer {
 
 	int width;				// screen width in pixels
 	int height;				// screen height in pixels
+	
+	float width_ratio;			// ratio of buffer width to SCRN_W
+	float height_ratio;			// ratio of buffer width to SCRN_W
 };
 
 typedef struct vec2i {

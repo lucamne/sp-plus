@@ -434,7 +434,7 @@ void *sp_plus_allocate_state(void)
 	s->sampler.num_banks = 1;
 	s->sampler.banks = calloc(1, sizeof(struct sample*));
 	s->sampler.banks[0] = calloc(8, sizeof(struct sample));
-	s->sampler.max_vert = 4000;
+	s->sampler.max_vert = 2000;
 
 	// load whole file into a buffer for DEBUG
 	void *buffer = NULL;
@@ -562,7 +562,6 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 	// TODO: Test once rendering is implemented
 	// waveform viewer zoom
 	if (is_key_pressed(input, KEY_EQUAL)) {
-		printf("=: %d\n", input->num_key_press[KEY_EQUAL]);
 		if (sampler->zoom <= 1024) sampler->zoom *= 2;
 	}
 	if (is_key_pressed(input, KEY_MINUS)) {
@@ -802,8 +801,16 @@ void sp_plus_update_and_render(
 {
 	process_input_and_update(sp_state, input);
 
-	struct pixel_buffer buffer = { pixel_buf, pixel_bytes, pixel_width, pixel_height };
+	struct pixel_buffer buffer = { 
+		pixel_buf, 
+		pixel_bytes, 
+		pixel_width, 
+		pixel_height, 
+		(float) pixel_width / SCRN_W, 
+		(float) pixel_height / SCRN_H};
+
 	clear_pixel_buffer(&buffer);
 
+	//draw_line(&buffer, (vec2i) {200, 200}, (vec2i) {300, 400}, RED);
 	draw_sampler(sp_state, &buffer);
 }

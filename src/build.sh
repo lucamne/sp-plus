@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd ~/project/music_software/sp-plus/src || { echo "Failed to change directory"; exit 1; }
+cd ~/project/sp-plus/src || { echo "Failed to change directory"; exit 1; }
 
 TARGET="../bin/sp-plus"
 SRC="platform/linux_platform.c sp_plus.c render.c"
