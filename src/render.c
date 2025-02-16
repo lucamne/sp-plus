@@ -1,21 +1,17 @@
 #include "render.h"
+#include "sp_plus_assert.h"
+
+#include "stb_truetype.h"
 
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
 
 /* Core */
-static void set_pixel(const struct pixel_buffer *buffer, vec2i v, color c)
+static inline void set_pixel(const struct pixel_buffer *buffer, vec2i v, color c)
 {
-	if (v.x >= SCRN_H || v.x < 0 || v.y >= SCRN_H || v.y < 0) return;
-	if (!buffer || !buffer->buffer) return;
-
-	const int true_x = roundf(v.x * buffer->width_ratio);
-	const int true_y = roundf(v.y * buffer->height_ratio);
-
-	const int i = buffer->pixel_size * (true_y * buffer->width + true_x);
-
-	memcpy(buffer->buffer + i, &c, buffer->pixel_size);
+	const int i = v.y * buffer->width + v.x;
+	((color *) (buffer->buffer)) [i] = c;
 }
 
 static void 
@@ -66,20 +62,34 @@ octant1(const struct pixel_buffer *buffer, vec2i v, int dx, int dy, int xdir, co
 // clear pixel buffer to black
 void clear_pixel_buffer(const struct pixel_buffer *buffer)
 {
-	if (!buffer || !buffer->buffer) return;
 	memset(buffer->buffer, 0, buffer->width * buffer->height * buffer->pixel_size);
 }
 
 void fill_pixel_buffer(const struct pixel_buffer *buffer, color c)
 {
-	for (int i = 0; i < buffer->width * buffer->height; i++) {
-		memcpy(buffer->buffer + i * buffer->pixel_size, &c, buffer->pixel_size);
-	}
+	uint64_t p = ((uint64_t) c) << 32 | c;
+	int num_p = buffer->width * buffer->height;
+	int i;
+	for (i = 0; i < num_p - 1; i += 2)
+		*((uint64_t *) ((uint32_t *) buffer->buffer + i)) = p;
+
+	if (i = num_p + 1)
+		((uint32_t *) (buffer->buffer))[i - 2] = c;
+}
+
+// transforms vec2i from internal coordinates to pixel_buffer coordinates
+static inline vec2i transform_vec2i(const struct pixel_buffer *buffer, vec2i v)
+{
+	ASSERT(v.x >= 0 && v.x < SCRN_W && v.y >= 0 && v.y < SCRN_H);
+	return (vec2i) { roundf((float) v.x / SCRN_W * buffer->width), roundf((float) v.y / SCRN_H * buffer->height)};
 }
 
 // TODO special case for horizontal line
 void draw_line(const struct pixel_buffer *buffer, vec2i start, vec2i end, color c)
 {
+	start = transform_vec2i(buffer, start);
+	end = transform_vec2i(buffer, end);
+
 	// Skip half the cases by ensuring y1 > y0
 	if (start.y > end.y) {
 		const vec2i temp = start;

@@ -3,18 +3,19 @@
 
 #include <stdint.h>
 
+/* Usage */
+// 
+
 /* Constants */
-// NOTE: rendering will be done at 1080p and mapped to actual window size
-// coordinate ranges - x:[0, SCRN_W - 1], y:[0, SCRN_H - 1]
 static const int SCRN_W = 1920;
 static const int SCRN_H = 1080;
 
 /* Colors */
+// TODO: ARGB format may be platform specific
 #define WHITE 	0xFFFFFFFF
 #define BLACK 	0xFF000000
 #define RED 	0xFFB82626
 #define GREEN 	0xFF247316
-// Soft Sand palette
 
 
 /* Types */
@@ -24,9 +25,6 @@ struct pixel_buffer {
 
 	int width;				// screen width in pixels
 	int height;				// screen height in pixels
-	
-	float width_ratio;			// ratio of buffer width to SCRN_W
-	float height_ratio;			// ratio of buffer width to SCRN_W
 };
 
 typedef struct vec2i {
@@ -34,7 +32,7 @@ typedef struct vec2i {
 	int y;
 } vec2i;
 
-typedef int32_t color;
+typedef uint32_t color;
 
 void clear_pixel_buffer(const struct pixel_buffer *buffer);
 void fill_pixel_buffer(const struct pixel_buffer *buffer, color c);

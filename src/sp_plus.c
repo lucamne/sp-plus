@@ -1,14 +1,22 @@
+// internal
 #include "sp_plus.h"
 #include "audio_types.h"
 #include "render.h"
-#include "smarc.h"
+#include "sp_plus_assert.h"
 
+// external
+#include "smarc.h"
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+
+// libc
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
 
 // Wav paths for testing
 #define WAV1 "../test/GREEN.wav"
+#define FONT1 "../fonts/DejaVuSans-Bold.ttf"
 
 // TODO: may want to move this eventually
 // currently used in sp_plus_allocate_state and proccess_input_and_update
@@ -422,6 +430,7 @@ static int load_sample_from_wav_buffer(struct sample *s, char *buffer, const lon
 
 /* Initialization */
 
+
 // state allocation service called by platform
 // use this function for initializing debugging data
 void *sp_plus_allocate_state(void)
@@ -630,7 +639,7 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 		float ms = frames_to_ms(s->attack);
 		if (alt) ms -= 2;
 		else ms += 2;
-		
+
 		if (ms >= 0) { 
 			const int32_t frames = ms_to_frames(ms);
 			if (s->end_frame - s->start_frame - s->release >= frames) {
@@ -733,7 +742,7 @@ static void draw_waveform(
 
 		const int play_x = 
 			roundf(((int) (s->next_frame - first_frame_to_draw) / frame_freq) * 
-			vertex_spacing + wave_origin.x);
+					vertex_spacing + wave_origin.x);
 		const vec2i startv = {play_x, roundf(wave_origin.y - max_height / 2.0f)};
 		const vec2i endv = {play_x, roundf(wave_origin.y + max_height / 2.0f)};
 		draw_line(buffer, startv, endv, RED);
@@ -743,7 +752,7 @@ static void draw_waveform(
 
 		const int start_x = 
 			roundf(((int) (s->start_frame - first_frame_to_draw) / frame_freq) * 
-			vertex_spacing + wave_origin.x);
+					vertex_spacing + wave_origin.x);
 		const vec2i startv = {start_x, roundf(wave_origin.y - max_height / 2.0f)};
 		const vec2i endv = {start_x, roundf(wave_origin.y + max_height / 2.0f)};
 		draw_line(buffer, startv, endv, GREEN);
@@ -753,7 +762,7 @@ static void draw_waveform(
 
 		const int end_x = 
 			roundf(((int) (s->end_frame - first_frame_to_draw) / frame_freq) * 
-			vertex_spacing + wave_origin.x);
+					vertex_spacing + wave_origin.x);
 		const vec2i startv = {end_x, roundf(wave_origin.y - max_height / 2.0f)};
 		const vec2i endv = {end_x, roundf(wave_origin.y + max_height / 2.0f)};
 		draw_line(buffer, startv, endv, GREEN);
@@ -785,10 +794,43 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 
 	// info
 	/*
-	char txt[64];
-	snprintf(txt, 64, "filename: %s", s->path);
-	draw_text(buffer, txt, strlen(txt), origin, FONT_SIZE, WHITE);
+	   char txt[64];
+	   snprintf(txt, 64, "filename: %s", s->path);
+	   draw_text(buffer, txt, strlen(txt), origin, FONT_SIZE, WHITE);
+	   */
+}
+
+static void test_font(struct pixel_buffer *pix_buff)
+{
+	stbtt_fontinfo font;
+	unsigned char *bitmap;
+	int w,h,i,j,c = 'a', s = 100;
+
+	void *ttf_buffer = NULL;
+	const int64_t buf_bytes = platform_load_entire_file(&ttf_buffer, FONT1);
+
+	stbtt_InitFont(&font, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer,0));
+	bitmap = stbtt_GetCodepointBitmap(&font, 0,stbtt_ScaleForPixelHeight(&font, s), c, &w, &h, 0,0);
+
+	/*
+	for (j=0; j < h; ++j) {
+		for (i=0; i < w; ++i)
+			putchar(" .:ioVM@"[bitmap[j*w+i]>>5]);
+		putchar('\n');
+	}
 	*/
+
+	for (int y = 0; y < h; y++) {
+		for (int x = 0; x < w; x++) {
+			unsigned char curr_pix = bitmap[y * w + x];
+			if (curr_pix) {
+				color res_color = 0xFF000000 | curr_pix << 16 | curr_pix << 8 | curr_pix;
+				((uint32_t *) pix_buff->buffer)[(y + 10) * pix_buff->width + x + 10] = res_color;
+			}
+		}
+	}
+	free(bitmap);
+	platform_free_file_buffer(&ttf_buffer);
 }
 
 void sp_plus_update_and_render(
@@ -799,18 +841,20 @@ void sp_plus_update_and_render(
 		int pixel_bytes,
 		struct key_input* input)
 {
+	ASSERT(sp_state);
+	ASSERT(pixel_buf);
+
 	process_input_and_update(sp_state, input);
 
 	struct pixel_buffer buffer = { 
 		pixel_buf, 
 		pixel_bytes, 
 		pixel_width, 
-		pixel_height, 
-		(float) pixel_width / SCRN_W, 
-		(float) pixel_height / SCRN_H};
+		pixel_height};
 
 	clear_pixel_buffer(&buffer);
+	test_font(&buffer);
+	// fill_pixel_buffer(&buffer, RED);
 
-	//draw_line(&buffer, (vec2i) {200, 200}, (vec2i) {300, 400}, RED);
-	draw_sampler(sp_state, &buffer);
+	// draw_sampler(sp_state, &buffer);
 }
