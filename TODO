@@ -4,14 +4,21 @@ FIGMA DESIGN: https://www.figma.com/design/Y4c5zMXcFONRbHBwzL4usA/Untitled?node-
 PLATFORM STUFF
 ------------------------------------------
  Create Logging
- Create build bash script to replace make?
+
+PROGRAM STUFF
+------------------------------------------
+Check return value of allocations
+Create an array of fonts of different sizes so I don't have to scale bitmap for each glyph every frame
+lock screen at 1080 for now
+	in the future may allow some other resolutions
+
+Need to clean and comment render code
 
 
 SAMPLER
 ----------------------------------
 Reach Feature Parity with main
 	Reimplement gui
-		Create/Implement text drawing
 
 
 Sample Pad manipulation
@@ -29,12 +36,12 @@ Add file loading ui element
 Load folder into sampler
 
 Rethink keyboard input
-implement delay then repeat controls
 
 MISC
 ----------------------------------
 Add help / command line
 Add error log screen
+Rename audio_types.h to types.h?
 
 TESTING
 --------------------------------------------
