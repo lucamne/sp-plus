@@ -1,6 +1,6 @@
 // internal
 #include "sp_plus.h"
-#include "audio_types.h"
+#include "sp_types.h"
 #include "render.h"
 #include "sp_plus_assert.h"
 
@@ -14,13 +14,14 @@
 #include <string.h>
 #include <stdlib.h>
 
-// Wav paths for testing
+// paths for testing
 #define WAV1 "../test/GREEN.wav"
 #define FONT1 "../fonts/DejaVuSans-Bold.ttf"
 
-// TODO: may want to move this eventually
+// TODO: may want to move these eventually
 // currently used in sp_plus_allocate_state and proccess_input_and_update
 static const int NUM_PADS = 8;
+
 
 /* Audio playback */
 
@@ -433,17 +434,31 @@ static int load_sample_from_wav_buffer(struct sample *s, char *buffer, const lon
 
 // state allocation service called by platform
 // use this function for initializing debugging data
+// TODO consider moving initialization code
 void *sp_plus_allocate_state(void)
 {
 	struct sp_state *s = calloc(1, sizeof(struct sp_state));
 	if (!s) return NULL;
 
+	/* Initializing sp_state */
 	// initialize a sample bank with 8 samples
 	s->sampler.zoom = 1;
 	s->sampler.num_banks = 1;
 	s->sampler.banks = calloc(1, sizeof(struct sample*));
 	s->sampler.banks[0] = calloc(8, sizeof(struct sample));
 	s->sampler.max_vert = 2000;
+
+	// setup active sample
+	s->sampler.active_sample = & s->sampler.banks[0][0];
+
+	// initialize fonts
+	void *ttf_buffer = NULL;
+	platform_load_entire_file(&ttf_buffer, FONT1);
+	load_font(&(s->fonts[MED]), ttf_buffer, 20);
+	platform_free_file_buffer(&ttf_buffer);
+
+
+	// DEBUGGING CODE
 
 	// load whole file into a buffer for DEBUG
 	void *buffer = NULL;
@@ -771,6 +786,7 @@ static void draw_waveform(
 
 static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buffer *buffer)
 {
+	ASSERT(sp_state && sp_state->sampler.active_sample);
 	// sets position of sampler on screen
 	const vec2i origin = {0, 0};
 
@@ -792,45 +808,113 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 	// draw waveform
 	draw_waveform(sp_state, buffer, WAVE_ORIGIN, VIEWER_W - 20, VIEWER_H - 20);
 
-	// info
-	/*
-	   char txt[64];
-	   snprintf(txt, 64, "filename: %s", s->path);
-	   draw_text(buffer, txt, strlen(txt), origin, FONT_SIZE, WHITE);
-	   */
-}
+	/////////////////////////////////////////////////////////
+	/// info
+	const struct font *curr_font = sp_state->fonts + MED;
+	int font_h = curr_font->height;
+	struct sample *active_sample = sp_state->sampler.active_sample;
+	vec2i txt_pos = origin;
+	char txt[64];
+	
+	// filename
+	txt_pos.x = origin.x + 5;
+	txt_pos.y = origin.y + VIEWER_H;
+	snprintf(txt, 64, "filename: %s", sp_state->sampler.active_sample->path);
+	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
 
-static void test_font(struct pixel_buffer *pix_buff)
-{
-	stbtt_fontinfo font;
-	unsigned char *bitmap;
-	int w,h,i,j,c = 'a', s = 100;
+	// playback time
+	int times[3 * 2] = {0};	// holds mins and secs for each time field
+	if (active_sample->num_frames) {
+		// total
+		const float speed = fabs(active_sample->speed);
+		int sec = active_sample->num_frames / SAMPLE_RATE / speed;
+		times[0] = sec / 60;
+		times[1] = sec % 60;
+		// active
+		sec = (active_sample->end_frame - active_sample->start_frame) / SAMPLE_RATE / speed;
+		times[2] = sec / 60;
+		times[3] = sec % 60;
+		// playback
+		sec = active_sample->next_frame / SAMPLE_RATE / speed;
+		times[4] = sec / 60;
+		times[5] = sec % 60;
+	} 
+	txt_pos.x = origin.x + VIEWER_W + 5;
+	txt_pos.y = origin.y;
+	snprintf(txt, 64, "total length: %01d:%02d", times[0], times[1]);
+	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
 
-	void *ttf_buffer = NULL;
-	const int64_t buf_bytes = platform_load_entire_file(&ttf_buffer, FONT1);
+	txt_pos.y += font_h;
+	snprintf(txt, 64, "active length: %01d:%02d", times[2], times[3]);
+	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
 
-	stbtt_InitFont(&font, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer,0));
-	bitmap = stbtt_GetCodepointBitmap(&font, 0,stbtt_ScaleForPixelHeight(&font, s), c, &w, &h, 0,0);
+	txt_pos.y += font_h;
+	snprintf(txt, 64, "playback: %01d:%02d", times[4], times[5]);
+	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
 
-	/*
-	for (j=0; j < h; ++j) {
-		for (i=0; i < w; ++i)
-			putchar(" .:ioVM@"[bitmap[j*w+i]>>5]);
-		putchar('\n');
+	//////////////////////////////////////////////////////////////////////////
+	/// Sample Controls
+
+	// gate
+	txt_pos.y += font_h;
+	vec2i rec_pos = {txt_pos.x + 100, txt_pos.y + 6};
+	strcpy(txt, "gate:");
+
+	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+	if (active_sample->gate) 
+		draw_rec(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
+	else 
+		draw_rec_outline(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
+	
+	// reverse
+	txt_pos.y += font_h;
+	rec_pos.y += font_h;
+	strcpy(txt, "reverse:");
+
+	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+	if (active_sample->reverse) 
+		draw_rec(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
+	else 
+		draw_rec_outline(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
+
+	// loop
+	txt_pos.y += font_h;
+	char *loop_mode;
+	switch (active_sample->loop_mode) {
+		case LOOP:
+			loop_mode = "loop";
+			break;
+		case PING_PONG:
+			loop_mode = "ping-pong";
+			break;
+		case LOOP_OFF:
+		default:
+			loop_mode = "off";
+			break;
 	}
-	*/
 
-	for (int y = 0; y < h; y++) {
-		for (int x = 0; x < w; x++) {
-			unsigned char curr_pix = bitmap[y * w + x];
-			if (curr_pix) {
-				color res_color = 0xFF000000 | curr_pix << 16 | curr_pix << 8 | curr_pix;
-				((uint32_t *) pix_buff->buffer)[(y + 10) * pix_buff->width + x + 10] = res_color;
-			}
-		}
-	}
-	free(bitmap);
-	platform_free_file_buffer(&ttf_buffer);
+	snprintf(txt, 64, "loop: %s", loop_mode);
+	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+
+	// attack / release
+	txt_pos.y += font_h;
+	snprintf(txt, 64, "attack: %.0fms", frames_to_ms(active_sample->attack));
+	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+
+	txt_pos.y += font_h;
+	snprintf(txt, 64, "release: %.0fms", frames_to_ms(active_sample->release));
+	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+
+	// pitch / speed
+	txt_pos.y += font_h;
+	snprintf(txt, 64, "pitch: %+.0fst", roundf(speed_to_st(fabs(active_sample->speed))));
+	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+
+	txt_pos.y += font_h;
+	snprintf(txt, 64, "speed: %.2fx", fabs(active_sample->speed));
+	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+
+
 }
 
 void sp_plus_update_and_render(
@@ -844,8 +928,10 @@ void sp_plus_update_and_render(
 	ASSERT(sp_state);
 	ASSERT(pixel_buf);
 
+	/* update state */
 	process_input_and_update(sp_state, input);
 
+	/* render ui */
 	struct pixel_buffer buffer = { 
 		pixel_buf, 
 		pixel_bytes, 
@@ -853,8 +939,7 @@ void sp_plus_update_and_render(
 		pixel_height};
 
 	clear_pixel_buffer(&buffer);
-	test_font(&buffer);
 	// fill_pixel_buffer(&buffer, RED);
 
-	// draw_sampler(sp_state, &buffer);
+	draw_sampler(sp_state, &buffer);
 }

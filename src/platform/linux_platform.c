@@ -300,34 +300,28 @@ int main (int argc, char **argv)
 		fprintf(stderr, "Could not register WM_DELETE_WINDOW property\n");
 
 	// maximize screen
-	/*
-	   Atom wm_state = XInternAtom(x_data.display, "_NET_WM_STATE", 0);
-	   Atom max_h = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
-	   Atom max_v = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
+	Atom wm_state = XInternAtom(x_data.display, "_NET_WM_STATE", 0);
+	Atom max_h = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
+	Atom max_v = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
 
-	   if (wm_state == None) {
-	   fprintf(stderr, "failed to maximize window\n");
-	   } else {
-	   XClientMessageEvent ev = {0};
-	   ev.type = ClientMessage;
-	   ev.format = 32;
-	   ev.window = x_data.window;
-	   ev.message_type = wm_state;
-	   ev.data.l[0] = 2;
-	   ev.data.l[1] = max_h;
-	   ev.data.l[2] = max_v;
-	   ev.data.l[3] = 1;
+	if (wm_state == None) {
+		fprintf(stderr, "failed to maximize window\n");
+	} else {
+		XClientMessageEvent ev = {0};
+		ev.type = ClientMessage;
+		ev.format = 32;
+		ev.window = x_data.window;
+		ev.message_type = wm_state;
+		ev.data.l[0] = 2;
+		ev.data.l[1] = max_h;
+		ev.data.l[2] = max_v;
+		ev.data.l[3] = 1;
 
-	   XSendEvent(	x_data.display, DefaultRootWindow(x_data.display), 
-	   0, SubstructureNotifyMask, (XEvent *) &ev);
-	   }
-	   */
+		XSendEvent(	x_data.display, DefaultRootWindow(x_data.display), 
+				0, SubstructureNotifyMask, (XEvent *) &ev);
+	}
 
 	/* main update and render loop */
-
-	// TODO: Investigate extremely high resource usage by XORG and sp_plus
-	// 		Likely just looping too fast. Sleep() does not work because of
-	// 		signal interrupt
 
 	// frame cap data
 	const int target_fps = 30;
@@ -344,6 +338,7 @@ int main (int argc, char **argv)
 	XQueryKeymap(x_data.display, last_keystate);
 
 	while (window_open) {
+
 
 		/* keyboard input */
 		struct key_input input = {0};
@@ -435,19 +430,9 @@ int main (int argc, char **argv)
 					x_data.pixel_bytes * 8, 0);
 		}
 
-		/*
-		// draw some temporary stuff to the screen
-		const int pitch = x_data.width * x_data.pixel_bytes;
-		for (int y = 0; y < x_data.height; y++) {
-		char *row = x_data.pixel_buf + (y*pitch);
-		for (int x = 0; x < x_data.width; x++) {
-		unsigned int *p = (unsigned int *) (row + x * x_data.pixel_bytes);
-		if (x % 16 && y % 16) *p = 0xffffffff;
-		else *p = 0;
-		}
-		} 
-		*/
-
+		// TODO can make more efficient if size_change is not triggered when window is moved 
+		// only when actually resized
+		//
 		// call to sp_plus update and render service
 		sp_plus_update_and_render(
 				sp_state, x_data.pixel_buf, x_data.width,

@@ -1,8 +1,12 @@
-#ifndef SP_PLUS_AUDIO_TYPES_H
-#define SP_PLUS_AUDIO_TYPES_H
+#ifndef SP_TYPES_H
+#define SP_TYPES_H
+
+#include "stb_truetype.h"
 
 #include <stdint.h>
 #include <stdbool.h>
+
+// TODO should not be named audio_types
 
 // registers sampler module state
 enum Pad { PAD_Q = 0, PAD_W, PAD_E, PAD_R, PAD_A, PAD_S, PAD_D, PAD_F };
@@ -35,12 +39,6 @@ struct bus {
 	
 	bool active;			// should data be grabbed from bus
 	bool solo;			// is this bus soloed
-};
-
-// program state held by platform code
-struct sp_state {
-	struct bus master;
-	struct sampler sampler;
 };
 
 // container for audio data
@@ -76,5 +74,29 @@ struct sample {
 	double gate_release_cnt;
 	double gate_close_gain; // gain at time of gate close
 };
+
+
+struct glyph {
+	unsigned char *bitmap;
+	int w;
+	int h;
+	int x_off;
+	int y_off;
+};
+
+#define NUM_FONTS 1
+enum FontTypes {MED};
+struct font {
+	struct glyph *glyphs;
+	int height;		// font height approx in pixels
+};
+
+// program state held by platform code
+struct sp_state {
+	struct bus master;
+	struct sampler sampler;
+	struct font fonts[NUM_FONTS]; // array of fonts
+};
+
 
 #endif
