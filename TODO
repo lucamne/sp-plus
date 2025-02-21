@@ -1,5 +1,27 @@
-FILE
------------------------------------------
+FIGMA DESIGN: https://www.figma.com/design/Y4c5zMXcFONRbHBwzL4usA/Untitled?node-id=0-1&t=c2GXxJgKOhUTjPte-1
+
+
+PLATFORM STUFF
+------------------------------------------
+ Create Logging
+
+PROGRAM STUFF
+------------------------------------------
+Check return value of allocations
+Create an array of fonts of different sizes so I don't have to scale bitmap for each glyph every frame
+lock screen at 1080 for now
+	in the future may allow some other resolutions
+
+Need to clean and comment render code
+
+
+SAMPLER
+----------------------------------
+Sample Pad manipulation
+	swap sample pads
+	copy sample to another pad
+	chop sample to other pads
+
 Load single file into sampler
 	Get file path from user
 	check file exists
@@ -9,20 +31,13 @@ Load single file into sampler
 Add file loading ui element
 Load folder into sampler
 
-SAMPLER
-----------------------------------
-Sample Pad manipulation
-	swap sample pads
-	copy sample to another pad
-	chop sample to other pads
-
 Rethink keyboard input
-implement delay then repeat controls
 
 MISC
 ----------------------------------
-Add help screen
+Add help / command line
 Add error log screen
+Rename audio_types.h to types.h?
 
 TESTING
 --------------------------------------------
@@ -30,16 +45,14 @@ Test with very long samples
 
 ISSUES
 ------------------------------------------------
-Popping in green test
+Popping in green test (seems like it was a hardware issue)
 
 BONUS
 ------------------------------------------------
-remove unused stuff from alsa_dev struct
-Change font
 maybe grid for sampler?:
 	add auto grid selection
 	add snapping
 	add grid ui
 	add tempo ui
 
-Get rid of raylib, watch handmade
+watch handmade!!!
