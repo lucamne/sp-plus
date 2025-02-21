@@ -788,12 +788,12 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 {
 	ASSERT(sp_state && sp_state->sampler.active_sample);
 	// sets position of sampler on screen
-	const vec2i origin = {0, 0};
+	const vec2i origin = {350, 0};
 
 	const int BORDER_W = 800;
-	const int BORDER_H = 450;
+	const int BORDER_H = 400;
 	const int VIEWER_W = BORDER_W * 3 / 4;
-	const int VIEWER_H = BORDER_H * 2 / 3;
+	const int VIEWER_H = BORDER_H * 3 / 4;
 	const vec2i WAVE_ORIGIN = {origin.x + 10, origin.y + VIEWER_H / 2};
 
 	// border pane
@@ -817,10 +817,15 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 	char txt[64];
 	
 	// filename
-	txt_pos.x = origin.x + 5;
+	txt_pos.x = origin.x + 10;
 	txt_pos.y = origin.y + VIEWER_H;
 	snprintf(txt, 64, "filename: %s", sp_state->sampler.active_sample->path);
 	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+
+	// bank
+	txt_pos.y += font_h + 2;
+	snprintf(txt, 64, "bank: %d/%d", sp_state->sampler.cur_bank + 1, sp_state->sampler.num_banks);
+	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
 	// playback time
 	int times[3 * 2] = {0};	// holds mins and secs for each time field
@@ -839,36 +844,36 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 		times[4] = sec / 60;
 		times[5] = sec % 60;
 	} 
-	txt_pos.x = origin.x + VIEWER_W + 5;
+	txt_pos.x = origin.x + VIEWER_W + 7;
 	txt_pos.y = origin.y;
 	snprintf(txt, 64, "total length: %01d:%02d", times[0], times[1]);
-	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
-	txt_pos.y += font_h;
+	txt_pos.y += font_h + 2;
 	snprintf(txt, 64, "active length: %01d:%02d", times[2], times[3]);
-	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
-	txt_pos.y += font_h;
+	txt_pos.y += font_h + 2;
 	snprintf(txt, 64, "playback: %01d:%02d", times[4], times[5]);
-	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
 	//////////////////////////////////////////////////////////////////////////
 	/// Sample Controls
 
 	// gate
-	txt_pos.y += font_h;
+	txt_pos.y += 2 * font_h;
 	vec2i rec_pos = {txt_pos.x + 100, txt_pos.y + 6};
 	strcpy(txt, "gate:");
 
-	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 	if (active_sample->gate) 
 		draw_rec(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
 	else 
 		draw_rec_outline(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
 	
 	// reverse
-	txt_pos.y += font_h;
-	rec_pos.y += font_h;
+	txt_pos.y += font_h + 2;
+	rec_pos.y += font_h + 2;
 	strcpy(txt, "reverse:");
 
 	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
@@ -878,7 +883,7 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 		draw_rec_outline(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
 
 	// loop
-	txt_pos.y += font_h;
+	txt_pos.y += font_h + 2;
 	char *loop_mode;
 	switch (active_sample->loop_mode) {
 		case LOOP:
@@ -894,27 +899,105 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 	}
 
 	snprintf(txt, 64, "loop: %s", loop_mode);
-	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
 	// attack / release
-	txt_pos.y += font_h;
+	txt_pos.y += font_h + 2;
 	snprintf(txt, 64, "attack: %.0fms", frames_to_ms(active_sample->attack));
-	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
-	txt_pos.y += font_h;
+	txt_pos.y += font_h + 2;
 	snprintf(txt, 64, "release: %.0fms", frames_to_ms(active_sample->release));
-	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
 	// pitch / speed
-	txt_pos.y += font_h;
+	txt_pos.y += font_h + 2;
 	snprintf(txt, 64, "pitch: %+.0fst", roundf(speed_to_st(fabs(active_sample->speed))));
-	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
-	txt_pos.y += font_h;
+	txt_pos.y += font_h + 2;
 	snprintf(txt, 64, "speed: %.2fx", fabs(active_sample->speed));
-	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
+	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
 
+	////////////////////////////////////////////////////////////////////////////////
+	/// Sample Pads
+
+	struct sample **banks = sp_state->sampler.banks;
+	int curr_bank = sp_state->sampler.cur_bank;
+
+	vec2i pad_pos = {origin.x + 10, origin.y + VIEWER_H + (int) (2.5f * font_h) };
+	vec2i label_pos = {pad_pos.x + 2, pad_pos.y - 2};
+	int PAD_WIDTH = 40;
+	int PAD_HEIGHT = 40;
+
+	// Q
+	if (banks[curr_bank][PAD_Q].num_frames && banks[curr_bank][PAD_Q].playing)
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
+	else
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
+	draw_text(buffer, "Q", curr_font, label_pos, BLACK);
+
+	// W
+	pad_pos.x += PAD_WIDTH + 10;
+	label_pos.x += PAD_WIDTH + 10; 
+	if (banks[curr_bank][PAD_W].num_frames && banks[curr_bank][PAD_W].playing)
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
+	else
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
+	draw_text(buffer, "W", curr_font, label_pos, BLACK);
+
+	// E
+	pad_pos.x += PAD_WIDTH + 10;
+	label_pos.x += PAD_WIDTH + 10; 
+	if (banks[curr_bank][PAD_E].num_frames && banks[curr_bank][PAD_E].playing)
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
+	else
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
+	draw_text(buffer, "E", curr_font, label_pos, BLACK);
+
+	// R
+	pad_pos.x += PAD_WIDTH + 10;
+	label_pos.x += PAD_WIDTH + 10; 
+	if (banks[curr_bank][PAD_R].num_frames && banks[curr_bank][PAD_R].playing)
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
+	else
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
+	draw_text(buffer, "R", curr_font, label_pos, BLACK);
+
+	// A
+	if (banks[curr_bank][PAD_A].num_frames && banks[curr_bank][PAD_A].playing)
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
+	else
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
+	draw_text(buffer, "A", curr_font, label_pos, BLACK);
+
+	// S
+	pad_pos.x += PAD_WIDTH + 10;
+	label_pos.x += PAD_WIDTH + 10; 
+	if (banks[curr_bank][PAD_S].num_frames && banks[curr_bank][PAD_S].playing)
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
+	else
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
+	draw_text(buffer, "S", curr_font, label_pos, BLACK);
+
+	// D
+	pad_pos.x += PAD_WIDTH + 10;
+	label_pos.x += PAD_WIDTH + 10; 
+	if (banks[curr_bank][PAD_D].num_frames && banks[curr_bank][PAD_D].playing)
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
+	else
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
+	draw_text(buffer, "D", curr_font, label_pos, BLACK);
+
+	// F
+	pad_pos.x += PAD_WIDTH + 10;
+	label_pos.x += PAD_WIDTH + 10; 
+	if (banks[curr_bank][PAD_F].num_frames && banks[curr_bank][PAD_F].playing)
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
+	else
+		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
+	draw_text(buffer, "F", curr_font, label_pos, BLACK);
 }
 
 void sp_plus_update_and_render(

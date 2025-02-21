@@ -37,4 +37,4 @@ Ubuntu: `sudo apt install build-essential libasound2-dev libX11-dev`
 2. Run `make lib`
 ### Build sp-plus
 1. Navigate to sp-plus/src
-2. Run `make`
+2. Run build.sh. Set -r flag for release mode

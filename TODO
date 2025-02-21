@@ -17,10 +17,6 @@ Need to clean and comment render code
 
 SAMPLER
 ----------------------------------
-Reach Feature Parity with main
-	Reimplement gui
-
-
 Sample Pad manipulation
 	swap sample pads
 	copy sample to another pad
