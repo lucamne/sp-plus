@@ -1,0 +1,13 @@
+Sampler Commands
+
+Trigger Samples: Q, W, E, R, A, S, D, F (Hold Shift to switch to sample without triggering)
+Pitch Up/Down: O / Shift + O
+Switch Gate mode: G
+Switch Loop mode: L
+Move Start Forward/Backward: U / Shift + U
+Move End Forward/Backward: I / Shift + I
+Increase/Decrease Attack: J / Shift + J
+Increase/Decrease Release: K / Shift + K
+Zoom In/Out: = / -
+Reverse Playback: V
+Kill All samples: X

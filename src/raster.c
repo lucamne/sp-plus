@@ -1,8 +1,9 @@
-#include "render.h"
+#include "raster.h"
 #include "sp_plus_assert.h"
 
 #include "stb_truetype.h"
 
+#include <stdio.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
@@ -61,8 +62,6 @@ octant0(const struct pixel_buffer *buffer, vec2i v, int dx, int dy, int xdir, Co
 	const int dyX2_minus_dxX2 = dyX2 - dx * 2;
 	int error_term = dyX2 - dx;
 
-	if (!vec2i_on_screen(buffer, v))
-		return;
 	set_pixel(buffer, v, c);
 	while (dx--) {
 		// increment y if error_term >=0 and adjust error_term back down
@@ -73,8 +72,6 @@ octant0(const struct pixel_buffer *buffer, vec2i v, int dx, int dy, int xdir, Co
 			error_term += dyX2;
 		}
 		v.x += xdir;
-		if (!vec2i_on_screen(buffer, v))
-			return;
 		set_pixel(buffer, v, c);
 	}
 }
@@ -87,8 +84,6 @@ octant1(const struct pixel_buffer *buffer, vec2i v, int dx, int dy, int xdir, Co
 	const int dxX2_minus_dyX2 = dxX2 - dy * 2;
 	int error_term = dxX2 - dy;
 
-	if (!vec2i_on_screen(buffer, v))
-		return;
 	set_pixel(buffer, v, c);
 	while (dy--) {
 		// increment y if error_term >=0 and adjust error_term back down
@@ -99,8 +94,6 @@ octant1(const struct pixel_buffer *buffer, vec2i v, int dx, int dy, int xdir, Co
 			error_term += dxX2;
 		}
 		v.y++;
-		if (!vec2i_on_screen(buffer, v))
-			return;
 		set_pixel(buffer, v, c);
 	}
 }
@@ -135,14 +128,13 @@ static inline vec2i transform_vec2i(const struct pixel_buffer *buffer, vec2i v)
 }
 
 // TODO special case for horizontal line
-// TODO can do some math to chop vectors to edge of screen
+// TODO no bounds processing on vectors as screen is locked at 1080
 void draw_line(const struct pixel_buffer *buffer, vec2i start, vec2i end, Color c)
 {
 	/*
 	   start = transform_vec2i(buffer, start);
 	   end = transform_vec2i(buffer, end);
 	   */
-	if (!vec2i_on_screen(buffer, start) && !vec2i_on_screen(buffer, end)) return;
 
 
 	// Skip half the cases by ensuring y1 > y0
@@ -204,8 +196,6 @@ void draw_rec(const struct pixel_buffer *buffer, vec2i start, int width, int hei
 ///
 /// Text stuff
 ///
-/// TODO once UI is finalized bitmaps of specific sizes can be pre rasterized
-/// This dynamic scaling is so inneficient
 
 // font_bitmap array extracts ASCII chars from SPACE to '~'
 #define FIRST_ASCII_VAL 32
@@ -223,6 +213,10 @@ void load_font(struct font *font, void *ttf_buffer, int pix_height)
 
 	font->height = pix_height;
 	font->glyphs = calloc(NUM_GLYPHS, sizeof(struct glyph));
+	if (!font->glyphs) {
+		fprintf(stderr, "Error allocating font\n");
+		exit(1);
+	}
 
 	// populate font bitmap
 	// skip SPACE codepoint and fill in manually last
@@ -236,48 +230,6 @@ void load_font(struct font *font, void *ttf_buffer, int pix_height)
 	}
 	font->glyphs->x_off = (font->glyphs + '0' - FIRST_ASCII_VAL)->w;
 }
-
-/*
- * TODO remove this when sure not needed
-// creates a scaled version of ref_glyph
-// should be freed by free_glyph()
-static struct glyph *scale_glyph_height(const struct glyph *ref_glyph, float scale, int scrn_width, int scrn_height)
-{
-	struct glyph *g = malloc(sizeof(struct glyph));
-
-	float scrn_scale_x = (float) scrn_width / SCRN_W;
-	float scrn_scale_y = (float) scrn_height / SCRN_H;
-
-	g->w = roundf(ref_glyph->w * scale);
-	g->h = roundf(ref_glyph->h * scale);
-	g->x_off = roundf(ref_glyph->x_off * scale);
-	g->y_off = roundf(ref_glyph->y_off * scale);
-
-	g->bitmap = malloc(g->w * g->h);
-
-	float x_inc = (float) ref_glyph->w / g->w;
-	float y_inc = (float) ref_glyph->h / g->h;
-
-	// TODO add interpolation if needed instead of just rounding
-	// will need to interpolate four pixels
-	for (int x = 0; x < g->w; x++) {
-		float x_pos = x * x_inc;
-
-		for (int y = 0; y < g->h; y++) {
-			float y_pos = y * y_inc;
-			g->bitmap[y * g->w + x] = ref_glyph->bitmap[(int) roundf(y_pos) * ref_glyph->w + (int) roundf(x_pos)];
-		}
-	}
-
-	return g;
-}
-
-static void free_glyph(struct glyph **g)
-{
-	free((*g)->bitmap);
-	free(*g);
-}
-*/
 
 void draw_text(
 		const struct pixel_buffer *pix_buff, 

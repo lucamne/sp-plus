@@ -1,7 +1,6 @@
 // internal
 #include "sp_plus.h"
 #include "sp_types.h"
-#include "render.h"
 #include "sp_plus_assert.h"
 
 // external
@@ -16,11 +15,22 @@
 
 // paths for testing
 #define WAV1 "../test/GREEN.wav"
+#define WAV2 "../test/GREEN.wav"
 #define FONT1 "../fonts/DejaVuSans-Bold.ttf"
 
 // TODO: may want to move these eventually
 // currently used in sp_plus_allocate_state and proccess_input_and_update
 static const int NUM_PADS = 8;
+
+// utility stuff used by draw_ui.c and update
+static float st_to_speed(const float st) { return powf(2.0f, st / 12.0f); }
+static float speed_to_st(float speed) { return -12 * log2f(1.0f / speed); }
+static int32_t ms_to_frames(const float m) { return m * SAMPLE_RATE / 1000.0f; }
+static float frames_to_ms(const int32_t f) { return 1000.0f * f / SAMPLE_RATE; }
+
+// .c includes
+#include "draw_ui.c"
+
 
 
 /* Audio playback */
@@ -230,6 +240,11 @@ static int resample(struct sample* s, int rate_in, int rate_out)
 	double* outbuf = malloc(OUT_SIZE * sizeof(double));
 	double* left_inbuf = malloc(s->num_frames * sizeof(double));
 	double* right_inbuf = malloc(s->num_frames * sizeof(double));
+
+	if (!outbuf || !left_inbuf || !right_inbuf) {
+		fprintf(stderr, "Error allocating memory for resampling\n");
+		exit(1);
+	}
 
 	// extract left and right channels
 	for (int i = 0; i < s->num_frames; i++) {
@@ -444,12 +459,20 @@ void *sp_plus_allocate_state(void)
 	// initialize a sample bank with 8 samples
 	s->sampler.zoom = 1;
 	s->sampler.num_banks = 1;
-	s->sampler.banks = calloc(1, sizeof(struct sample*));
-	s->sampler.banks[0] = calloc(8, sizeof(struct sample));
+	s->sampler.banks = calloc(1, sizeof(struct sample **));
+	if (!s->sampler.banks) {
+		fprintf(stderr, "Error allocating state memory\n");
+		exit(1);
+	}
+
+	s->sampler.banks[0] = calloc(8, sizeof(struct sample *));
+	if (!s->sampler.banks[0]) {
+		fprintf(stderr, "Error allocating state memory\n");
+		exit(1);
+	}
 	s->sampler.max_vert = 2000;
 
-	// setup active sample
-	s->sampler.active_sample = & s->sampler.banks[0][0];
+
 
 	// initialize fonts
 	void *ttf_buffer = NULL;
@@ -462,19 +485,55 @@ void *sp_plus_allocate_state(void)
 
 	// load whole file into a buffer for DEBUG
 	void *buffer = NULL;
-	const int64_t buf_bytes = platform_load_entire_file(&buffer, WAV1);
+	int64_t buf_bytes = platform_load_entire_file(&buffer, WAV1);
+	struct sampler *sampler = &(s->sampler);
 
 	if (buf_bytes) {
-		if (!load_sample_from_wav_buffer(&(s->sampler.banks[0][0]), buffer, buf_bytes)) {
-			s->master.sample_in = &(s->sampler.banks[0][0]);
-			// TODO consider where path should be set
-			s->sampler.banks[0][0].path = WAV1;
-		} else {
-			fprintf(stderr, "File load failed: %s\n", WAV1);
-		}
+		if(s->sampler.banks[0][0] = malloc(sizeof(struct sample))) {
+			if (!load_sample_from_wav_buffer(s->sampler.banks[0][0], buffer, buf_bytes)) {
+				// TODO consider where path should be set
+				s->sampler.banks[0][0]->path = WAV1;
+			} else {
+				fprintf(stderr, "File load failed: %s\n", WAV1);
+			}
 
-		platform_free_file_buffer(&buffer);
+			platform_free_file_buffer(&buffer);
+		}
 	}
+
+	buf_bytes = platform_load_entire_file(&buffer, WAV2);
+
+	if (buf_bytes) {
+		if(s->sampler.banks[0][1] = malloc(sizeof(struct sample))) {
+			if (!load_sample_from_wav_buffer(s->sampler.banks[0][1],  buffer, buf_bytes)) {
+				// TODO consider where path should be set
+				s->sampler.banks[0][1]->path = WAV2;
+			} else {
+				fprintf(stderr, "File load failed: %s\n", WAV2);
+			}
+
+			platform_free_file_buffer(&buffer);
+		}
+	}
+
+	struct bus *b1 = calloc(sizeof(struct bus), 0);
+	struct bus *b2 = calloc(sizeof(struct bus), 0);
+	if (!b1 || !b2) {
+		fprintf(stderr, "Error allocating state memory\n");
+		exit(1);
+	}
+
+	b1->sample_in = s->sampler.banks[0][PAD_Q];
+	b2->sample_in = s->sampler.banks[0][PAD_W];
+
+	s->master.num_bus_ins = 2;
+	s->master.bus_ins = malloc(sizeof(struct bus *) * 2);
+	if (!s->master.bus_ins) {
+		fprintf(stderr, "Error initializing master bus\n");
+		exit(1);
+	}
+	s->master.bus_ins[0] = b1;
+	s->master.bus_ins[1] = b2;
 
 
 	return (void *) s;
@@ -490,11 +549,6 @@ static char is_key_released(struct key_input *input, int key)
 {return input->key_released & 0b1 << key ? 1 : 0;}
 static char is_key_down(struct key_input *input, int key) 
 {return input->key_down & 0b1 << key ? 1 : 0;}
-// utility stuff
-static float st_to_speed(const float st) { return powf(2.0f, st / 12.0f); }
-static float speed_to_st(float speed) { return -12 * log2f(1.0f / speed); }
-static int32_t ms_to_frames(const float m) { return m * SAMPLE_RATE / 1000.0f; }
-static float frames_to_ms(const int32_t f) { return 1000.0f * f / SAMPLE_RATE; }
 
 static void close_gate(struct sample* s)
 {
@@ -528,62 +582,128 @@ static void squeeze_envelope(struct sample *s )
 	s->release = s->end_frame - s->start_frame - s->attack;
 }
 
+static inline void process_pad_press(struct sp_state *sp_state, struct key_input *input, int key, int pad)
+{
+	int alt = is_key_down(input, KEY_SHIFT_L) || is_key_down(input, KEY_SHIFT_R); 
+	struct sampler *sampler = &sp_state->sampler;
+	struct sample ***banks = sampler->banks;
+	int curr_bank = sampler->curr_bank;
+
+	// if pad is pressed then either trigger sample
+	// store info for a move mode
+	// or switch to the sample view without a trigger
+	if (is_key_pressed(input, key)) {
+		switch (sampler->move_mode) {
+			case MOVE:
+				if (!sampler->pad_src) {
+					sampler->pad_src = banks[curr_bank] + pad;
+				} else {
+					// move sample pad from pad_src to this pad
+					struct sample *tmp = banks[curr_bank][pad];
+					banks[curr_bank][pad] = *sampler->pad_src;
+					*sampler->pad_src = tmp;
+
+					sampler->move_mode = NONE;
+					sampler->pad_src = NULL;
+				}
+				break;
+			case COPY:
+				if (!sampler->pad_src) {
+					sampler->pad_src = banks[curr_bank] + pad;
+				} else {
+					// copy sample pad from pad_src to this pad
+					// if new pad is empty then allocate another sample 
+					// otherwise free audio data of sample at dest pad
+					struct sample **dest_pad = banks[curr_bank] + pad;
+					if (!*dest_pad){
+						*dest_pad = malloc(sizeof(struct sample));
+						struct bus *new_bus = calloc(1, sizeof(struct bus));
+						// attach new sample to bus
+						new_bus->sample_in = *dest_pad;
+						sp_state->master.bus_ins = realloc(sp_state->master.bus_ins, sizeof(struct bus *) * ++(sp_state->master.num_bus_ins));
+						sp_state->master.bus_ins[sp_state->master.num_bus_ins - 1] = new_bus;
+					} else {
+						if ((*dest_pad)->data) free((*dest_pad)->data);
+					}
+
+					**dest_pad = **sampler->pad_src;
+					if((*dest_pad)->playing) kill_sample(*dest_pad);
+					// copy data
+					int64_t data_size = sizeof(double) * (*dest_pad)->num_frames * NUM_CHANNELS;
+					(*dest_pad)->data = malloc(data_size);
+					memcpy((*dest_pad)->data, (*sampler->pad_src)->data, data_size);
+
+					sampler->move_mode = NONE;
+					sampler->pad_src = NULL;
+				}
+				break;
+
+			case NONE:
+				if (!alt && banks[curr_bank][pad]) 
+					trigger_sample(banks[curr_bank][pad]);
+		}
+
+		sampler->active_sample = banks[curr_bank][pad];
+		sampler->curr_pad = pad;
+	} else if (is_key_released(input, key)){
+		close_gate(banks[curr_bank][pad]);
+	}
+}
+
 static void process_input_and_update(struct sp_state *sp_state, struct key_input *input)
 {
 
 	/* sampler updates */
 
 	struct sampler *sampler = &(sp_state->sampler);
-	struct sample **banks = sampler->banks;
+	struct sample ***banks = sampler->banks;
 	struct sample **active_sample = &(sampler->active_sample);
-	int cur_bank = sampler->cur_bank;
 
 	const char alt = is_key_down(input, KEY_SHIFT_L) || is_key_down(input, KEY_SHIFT_R); 
 
-	/* sample triggering*/
+
+	// What to do on pad press
 	// TODO: not all compilers will support binary literal, consider this
 	// Q Pad
-	if (is_key_pressed(input, KEY_Q)) {
-		if (!alt) 
-			trigger_sample(&banks[cur_bank][PAD_Q]);
-		*active_sample = &banks[cur_bank][PAD_Q];
-	} else if (is_key_released(input, KEY_Q)){
-		close_gate(&banks[cur_bank][PAD_Q]);
-	}
+	process_pad_press(sp_state, input, KEY_Q, PAD_Q);
 	// W Pad
-	if (is_key_pressed(input, KEY_W)) {
-		if (!alt) 
-			trigger_sample(&banks[cur_bank][PAD_W]);
-		*active_sample = &banks[cur_bank][PAD_W];
-	} else if (is_key_released(input, KEY_W)){
-		close_gate(&banks[cur_bank][PAD_W]);
-	}
+	process_pad_press(sp_state, input, KEY_W, PAD_W);
 	// E Pad
-	if (is_key_pressed(input, KEY_E)) {
-		if (!alt) 
-			trigger_sample(&banks[cur_bank][PAD_E]);
-		*active_sample = &banks[cur_bank][PAD_E];
-	} else if (is_key_released(input, KEY_E)){
-		close_gate(&banks[cur_bank][PAD_E]);
-	}
+	process_pad_press(sp_state, input, KEY_E, PAD_E);
 	// R Pad
-	if (is_key_pressed(input, KEY_R)) {
-		if (!alt) 
-			trigger_sample(&banks[cur_bank][PAD_R]);
-		*active_sample = &banks[cur_bank][PAD_R];
-	} else if (is_key_released(input, KEY_R)){
-		close_gate(&banks[cur_bank][PAD_R]);
+	process_pad_press(sp_state, input, KEY_R, PAD_R);
+	// A Pad
+	process_pad_press(sp_state, input, KEY_A, PAD_A);
+	// S Pad
+	process_pad_press(sp_state, input, KEY_S, PAD_S);
+	// D Pad
+	process_pad_press(sp_state, input, KEY_D, PAD_D);
+	// F Pad
+	process_pad_press(sp_state, input, KEY_F, PAD_F);
+
+	// Move sample
+	if (is_key_pressed(input, KEY_M)) {
+		sampler->move_mode = MOVE;
+		// TODO should always be NULL, but setting just in case for now
+		sampler->pad_src = NULL;
+	}
+
+	// Move sample
+	if (is_key_pressed(input, KEY_C)) {
+		sampler->move_mode = COPY;
+		// TODO should always be NULL, but setting just in case for now
+		sampler->pad_src = NULL;
 	}
 
 	// Kill all samples
 	if (is_key_pressed(input, KEY_X)) {
 		for (int b = 0; b < sampler->num_banks; b++) {
-			for (int p = 0; p < NUM_PADS; p++) {
-				kill_sample(&banks[b][p]);
+			for (int p = PAD_Q; p <= PAD_F; p++) {
+				if (sampler->banks[b][p]) kill_sample(sampler->banks[b][p]);
 			}
 		}
 	}
-	// TODO: Test once rendering is implemented
+
 	// waveform viewer zoom
 	if (is_key_pressed(input, KEY_EQUAL)) {
 		if (sampler->zoom <= 1024) sampler->zoom *= 2;
@@ -594,10 +714,10 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 	}
 	// switch bank
 	if (is_key_pressed(input, KEY_B)) {
-		if (!alt && sampler->cur_bank + 1 < sampler->num_banks)
-			sampler->cur_bank += 1;
-		else if (sampler->cur_bank > 0 ) 
-			sampler->cur_bank -= 1;
+		if (!alt && sampler->curr_bank + 1 < sampler->num_banks)
+			sampler->curr_bank += 1;
+		else if (sampler->curr_bank > 0 ) 
+			sampler->curr_bank -= 1;
 	}
 
 	/* Active sample playback options */
@@ -690,315 +810,6 @@ static void process_input_and_update(struct sp_state *sp_state, struct key_input
 }
 
 /* Rendering */
-static void draw_waveform(
-		const struct sp_state *sp_state, 
-		const struct pixel_buffer *buffer, 
-		const vec2i wave_origin, const int width, 
-		const int max_height)
-{
-	const struct sampler sampler = sp_state->sampler;
-	const struct sample *s = sampler.active_sample;
-	if (!s) return;
-
-	// calculate zoom parameters
-	const int32_t frames_to_draw = s->num_frames / sampler.zoom;
-	const int32_t focused_frame = sampler.zoom_focus == END ? 
-		s->end_frame : s->start_frame;
-
-	int32_t first_frame_to_draw;
-	if (focused_frame < frames_to_draw / 2)
-		first_frame_to_draw = 0;
-	else if (	s->num_frames - focused_frame <= 
-			frames_to_draw - (frames_to_draw / 2))
-		first_frame_to_draw = s->num_frames - frames_to_draw;
-	else
-		first_frame_to_draw = focused_frame - frames_to_draw / 2;
-
-	// calculate vertices to render and frames per vertex
-	int num_vertices;
-	float frame_freq;
-	if (frames_to_draw > sampler.max_vert) { 
-		num_vertices = sampler.max_vert;
-		frame_freq = (float) frames_to_draw / (float) sampler.max_vert;
-	} else {
-		num_vertices = frames_to_draw;
-		frame_freq = 1.0f;
-	}
-	if (num_vertices < 2) return;
-	const float vertex_spacing = width / (float) (num_vertices);
-
-	// draw wave lines
-	{
-		int32_t frame = first_frame_to_draw; 
-		double sum = 
-			(s->data[frame * NUM_CHANNELS] + 
-			 s->data[frame * NUM_CHANNELS + 1]) / 2.0;
-		int y = roundf((float) sum * (max_height / 2.0f) + wave_origin.y);
-		int x = wave_origin.x;
-		vec2i last_vertex = {x, y};
-
-		for (int i = 1; i < num_vertices; i++) {
-			frame = first_frame_to_draw + i * (int) frame_freq;
-			sum = (s->data[frame * NUM_CHANNELS] + s->data[frame * NUM_CHANNELS + 1]) / 2.0;
-
-			y = roundf((float) sum * (max_height / 2.0f) + wave_origin.y);
-			x = roundf((float) i * vertex_spacing + wave_origin.x);
-
-			const vec2i curr_vertex = {x, y};
-			draw_line(buffer, last_vertex, curr_vertex, WHITE);
-			last_vertex = curr_vertex;
-		}
-	}
-
-
-	// draw markers
-	if (	s->next_frame >= first_frame_to_draw && 
-			s->next_frame < first_frame_to_draw + frames_to_draw) {
-
-		const int play_x = 
-			roundf(((int) (s->next_frame - first_frame_to_draw) / frame_freq) * 
-					vertex_spacing + wave_origin.x);
-		const vec2i startv = {play_x, roundf(wave_origin.y - max_height / 2.0f)};
-		const vec2i endv = {play_x, roundf(wave_origin.y + max_height / 2.0f)};
-		draw_line(buffer, startv, endv, RED);
-	}
-	if (	s->start_frame >= first_frame_to_draw && 
-			s->start_frame < first_frame_to_draw + frames_to_draw) {
-
-		const int start_x = 
-			roundf(((int) (s->start_frame - first_frame_to_draw) / frame_freq) * 
-					vertex_spacing + wave_origin.x);
-		const vec2i startv = {start_x, roundf(wave_origin.y - max_height / 2.0f)};
-		const vec2i endv = {start_x, roundf(wave_origin.y + max_height / 2.0f)};
-		draw_line(buffer, startv, endv, GREEN);
-	}
-	if (	s->end_frame >= first_frame_to_draw && 
-			s->end_frame <= first_frame_to_draw + frames_to_draw) {
-
-		const int end_x = 
-			roundf(((int) (s->end_frame - first_frame_to_draw) / frame_freq) * 
-					vertex_spacing + wave_origin.x);
-		const vec2i startv = {end_x, roundf(wave_origin.y - max_height / 2.0f)};
-		const vec2i endv = {end_x, roundf(wave_origin.y + max_height / 2.0f)};
-		draw_line(buffer, startv, endv, GREEN);
-	}
-}
-
-static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buffer *buffer)
-{
-	ASSERT(sp_state && sp_state->sampler.active_sample);
-	// sets position of sampler on screen
-	const vec2i origin = {350, 0};
-
-	const int BORDER_W = 800;
-	const int BORDER_H = 400;
-	const int VIEWER_W = BORDER_W * 3 / 4;
-	const int VIEWER_H = BORDER_H * 3 / 4;
-	const vec2i WAVE_ORIGIN = {origin.x + 10, origin.y + VIEWER_H / 2};
-
-	// border pane
-	draw_rec_outline(buffer, origin, BORDER_W, BORDER_H, WHITE);
-	// waveform viewer pane
-	draw_rec_outline(buffer, origin, VIEWER_W, VIEWER_H, WHITE);
-	// draw control pane
-	const vec2i control_s = {origin.x + VIEWER_W - 1, origin.y + VIEWER_H - 1};
-	const vec2i control_e = {origin.x + VIEWER_W - 1, origin.y + BORDER_H - 1};
-	draw_line(buffer, control_s, control_e, WHITE);
-
-	// draw waveform
-	draw_waveform(sp_state, buffer, WAVE_ORIGIN, VIEWER_W - 20, VIEWER_H - 20);
-
-	/////////////////////////////////////////////////////////
-	/// info
-	const struct font *curr_font = sp_state->fonts + MED;
-	int font_h = curr_font->height;
-	struct sample *active_sample = sp_state->sampler.active_sample;
-	vec2i txt_pos = origin;
-	char txt[64];
-	
-	// filename
-	txt_pos.x = origin.x + 10;
-	txt_pos.y = origin.y + VIEWER_H;
-	snprintf(txt, 64, "filename: %s", sp_state->sampler.active_sample->path);
-	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
-
-	// bank
-	txt_pos.y += font_h + 2;
-	snprintf(txt, 64, "bank: %d/%d", sp_state->sampler.cur_bank + 1, sp_state->sampler.num_banks);
-	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
-
-	// playback time
-	int times[3 * 2] = {0};	// holds mins and secs for each time field
-	if (active_sample->num_frames) {
-		// total
-		const float speed = fabs(active_sample->speed);
-		int sec = active_sample->num_frames / SAMPLE_RATE / speed;
-		times[0] = sec / 60;
-		times[1] = sec % 60;
-		// active
-		sec = (active_sample->end_frame - active_sample->start_frame) / SAMPLE_RATE / speed;
-		times[2] = sec / 60;
-		times[3] = sec % 60;
-		// playback
-		sec = active_sample->next_frame / SAMPLE_RATE / speed;
-		times[4] = sec / 60;
-		times[5] = sec % 60;
-	} 
-	txt_pos.x = origin.x + VIEWER_W + 7;
-	txt_pos.y = origin.y;
-	snprintf(txt, 64, "total length: %01d:%02d", times[0], times[1]);
-	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
-
-	txt_pos.y += font_h + 2;
-	snprintf(txt, 64, "active length: %01d:%02d", times[2], times[3]);
-	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
-
-	txt_pos.y += font_h + 2;
-	snprintf(txt, 64, "playback: %01d:%02d", times[4], times[5]);
-	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
-
-	//////////////////////////////////////////////////////////////////////////
-	/// Sample Controls
-
-	// gate
-	txt_pos.y += 2 * font_h;
-	vec2i rec_pos = {txt_pos.x + 100, txt_pos.y + 6};
-	strcpy(txt, "gate:");
-
-	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
-	if (active_sample->gate) 
-		draw_rec(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
-	else 
-		draw_rec_outline(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
-	
-	// reverse
-	txt_pos.y += font_h + 2;
-	rec_pos.y += font_h + 2;
-	strcpy(txt, "reverse:");
-
-	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
-	if (active_sample->reverse) 
-		draw_rec(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
-	else 
-		draw_rec_outline(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
-
-	// loop
-	txt_pos.y += font_h + 2;
-	char *loop_mode;
-	switch (active_sample->loop_mode) {
-		case LOOP:
-			loop_mode = "loop";
-			break;
-		case PING_PONG:
-			loop_mode = "ping-pong";
-			break;
-		case LOOP_OFF:
-		default:
-			loop_mode = "off";
-			break;
-	}
-
-	snprintf(txt, 64, "loop: %s", loop_mode);
-	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
-
-	// attack / release
-	txt_pos.y += font_h + 2;
-	snprintf(txt, 64, "attack: %.0fms", frames_to_ms(active_sample->attack));
-	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
-
-	txt_pos.y += font_h + 2;
-	snprintf(txt, 64, "release: %.0fms", frames_to_ms(active_sample->release));
-	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
-
-	// pitch / speed
-	txt_pos.y += font_h + 2;
-	snprintf(txt, 64, "pitch: %+.0fst", roundf(speed_to_st(fabs(active_sample->speed))));
-	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
-
-	txt_pos.y += font_h + 2;
-	snprintf(txt, 64, "speed: %.2fx", fabs(active_sample->speed));
-	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
-
-
-	////////////////////////////////////////////////////////////////////////////////
-	/// Sample Pads
-
-	struct sample **banks = sp_state->sampler.banks;
-	int curr_bank = sp_state->sampler.cur_bank;
-
-	vec2i pad_pos = {origin.x + 10, origin.y + VIEWER_H + (int) (2.5f * font_h) };
-	vec2i label_pos = {pad_pos.x + 2, pad_pos.y - 2};
-	int PAD_WIDTH = 40;
-	int PAD_HEIGHT = 40;
-
-	// Q
-	if (banks[curr_bank][PAD_Q].num_frames && banks[curr_bank][PAD_Q].playing)
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
-	else
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
-	draw_text(buffer, "Q", curr_font, label_pos, BLACK);
-
-	// W
-	pad_pos.x += PAD_WIDTH + 10;
-	label_pos.x += PAD_WIDTH + 10; 
-	if (banks[curr_bank][PAD_W].num_frames && banks[curr_bank][PAD_W].playing)
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
-	else
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
-	draw_text(buffer, "W", curr_font, label_pos, BLACK);
-
-	// E
-	pad_pos.x += PAD_WIDTH + 10;
-	label_pos.x += PAD_WIDTH + 10; 
-	if (banks[curr_bank][PAD_E].num_frames && banks[curr_bank][PAD_E].playing)
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
-	else
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
-	draw_text(buffer, "E", curr_font, label_pos, BLACK);
-
-	// R
-	pad_pos.x += PAD_WIDTH + 10;
-	label_pos.x += PAD_WIDTH + 10; 
-	if (banks[curr_bank][PAD_R].num_frames && banks[curr_bank][PAD_R].playing)
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
-	else
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
-	draw_text(buffer, "R", curr_font, label_pos, BLACK);
-
-	// A
-	if (banks[curr_bank][PAD_A].num_frames && banks[curr_bank][PAD_A].playing)
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
-	else
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
-	draw_text(buffer, "A", curr_font, label_pos, BLACK);
-
-	// S
-	pad_pos.x += PAD_WIDTH + 10;
-	label_pos.x += PAD_WIDTH + 10; 
-	if (banks[curr_bank][PAD_S].num_frames && banks[curr_bank][PAD_S].playing)
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
-	else
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
-	draw_text(buffer, "S", curr_font, label_pos, BLACK);
-
-	// D
-	pad_pos.x += PAD_WIDTH + 10;
-	label_pos.x += PAD_WIDTH + 10; 
-	if (banks[curr_bank][PAD_D].num_frames && banks[curr_bank][PAD_D].playing)
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
-	else
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
-	draw_text(buffer, "D", curr_font, label_pos, BLACK);
-
-	// F
-	pad_pos.x += PAD_WIDTH + 10;
-	label_pos.x += PAD_WIDTH + 10; 
-	if (banks[curr_bank][PAD_F].num_frames && banks[curr_bank][PAD_F].playing)
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, RED);
-	else
-		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
-	draw_text(buffer, "F", curr_font, label_pos, BLACK);
-}
 
 void sp_plus_update_and_render(
 		void *sp_state, 

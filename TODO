@@ -7,28 +7,35 @@ PLATFORM STUFF
 
 PROGRAM STUFF
 ------------------------------------------
-Check return value of allocations
-Create an array of fonts of different sizes so I don't have to scale bitmap for each glyph every frame
-lock screen at 1080 for now
-	in the future may allow some other resolutions
-
-Need to clean and comment render code
-
 
 SAMPLER
 ----------------------------------
+Add escape to cancel moves and chops
+
+Create dialog window to assist with copy/move/chop
+
 Sample Pad manipulation
-	swap sample pads
-	copy sample to another pad
 	chop sample to other pads
 
+Create some kind of sample init function 
+	specifically because speed cannot be 0
+	Setup bus connections
+
+Might want to switch to linked list for bus_ins
+
+
+Make sure Right Shift works the same as left shift
+Add Current sample kill in addition to kill all samples
+
+File Browser
+-----------------------------------------
 Load single file into sampler
 	Get file path from user
 	check file exists
 	Load file data
 	Get desired bank and pad
 	add tab completetion
-Add file loading ui element
+
 Load folder into sampler
 
 Rethink keyboard input
@@ -37,11 +44,6 @@ MISC
 ----------------------------------
 Add help / command line
 Add error log screen
-Rename audio_types.h to types.h?
-
-TESTING
---------------------------------------------
-Test with very long samples
 
 ISSUES
 ------------------------------------------------

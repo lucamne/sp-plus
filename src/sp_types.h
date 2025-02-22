@@ -11,11 +11,12 @@
 // registers sampler module state
 enum Pad { PAD_Q = 0, PAD_W, PAD_E, PAD_R, PAD_A, PAD_S, PAD_D, PAD_F };
 struct sampler {
-	struct sample** banks;		// all loaded samples [BANK][PAD]
+	struct sample ***banks;		// referenecs to loaded samples [BANK][PAD]
 	int num_banks;
 
-	struct sample* active_sample;	// current sample to display
-	int cur_bank;			// currently selected sample bank
+	struct sample *active_sample;	// current sample to display
+	int curr_pad;			// current pad to display (corresponds to active_sample)
+	int curr_bank;			// currently selected sample bank
 
 	int zoom;			// wave viewer zoom
 	enum { 
@@ -23,6 +24,14 @@ struct sampler {
 		START, 
 		END 
 	} zoom_focus;			// focal point of zoom
+
+	enum {
+		NONE,
+		MOVE,
+		COPY
+	} move_mode;
+	struct sample **pad_src;	// pad to move or copy sample from
+
 	int max_vert;			// max vertices to render in wave viewer
 };
 
@@ -37,8 +46,8 @@ struct bus {
 	float atten;			// attenuation gain, [0.0, 1.0]
 	float pan;			// -1.0 = L, 1.0 = R
 	
-	bool active;			// should data be grabbed from bus
-	bool solo;			// is this bus soloed
+	// bool active;			// should data be grabbed from bus
+	// bool solo;			// is this bus soloed
 };
 
 // container for audio data

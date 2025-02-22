@@ -168,8 +168,8 @@ void init_x_window(struct x_window_data *data)
 {
 	// TODO store these somewhere better
 	// create display connection
-	const int width = 1280;
-	const int height = 720;
+	const int width = 1920;
+	const int height = 1080;
 
 	Display *display = XOpenDisplay(NULL);
 	if (!display) {
@@ -196,9 +196,9 @@ void init_x_window(struct x_window_data *data)
 	// set some attributes
 	XSetWindowAttributes attributes = {0};
 	attributes.background_pixel = 0;
-	attributes.colormap = 
-		XCreateColormap(display, root, visinfo.visual, AllocNone);
-	attributes.event_mask = StructureNotifyMask | KeyPressMask;
+	attributes.colormap = XCreateColormap(display, root, visinfo.visual, AllocNone);
+	// attributes.event_mask = StructureNotifyMask | KeyPressMask;
+	attributes.event_mask = KeyPressMask;
 	attributes.bit_gravity = StaticGravity;	// prevents flickering on window resize
 	unsigned long attribute_mask = 
 		CWBackPixel | CWColormap | CWEventMask | CWBitGravity;
@@ -218,9 +218,9 @@ void init_x_window(struct x_window_data *data)
 	XStoreName(display, window, "SP-PLUS");
 
 	// TODO store these somewhere useful
-	// set minimum window size
-	const int min_width = 400;
-	const int min_height = 300;
+	// lock window fullscreen for now
+	const int min_width = 1920;
+	const int min_height = 1080;
 	XSizeHints hints = {0};
 	if (min_width > 0 && min_height > 0) hints.flags |= PMinSize;
 
@@ -300,6 +300,7 @@ int main (int argc, char **argv)
 		fprintf(stderr, "Could not register WM_DELETE_WINDOW property\n");
 
 	// maximize screen
+	/*
 	Atom wm_state = XInternAtom(x_data.display, "_NET_WM_STATE", 0);
 	Atom max_h = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
 	Atom max_v = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
@@ -320,6 +321,7 @@ int main (int argc, char **argv)
 		XSendEvent(	x_data.display, DefaultRootWindow(x_data.display), 
 				0, SubstructureNotifyMask, (XEvent *) &ev);
 	}
+	*/
 
 	/* main update and render loop */
 
@@ -330,7 +332,7 @@ int main (int argc, char **argv)
 	clock_gettime(CLOCK_REALTIME, &start_time_rt);
 
 	// window flags
-	int size_change = 0;
+	// int size_change = 0;
 	int window_open = 1;
 
 	// bitfields to track key press state
@@ -394,6 +396,7 @@ int main (int argc, char **argv)
 						}
 					} break;
 
+					/*
 				case ConfigureNotify:
 					{
 						XConfigureEvent *e = (XConfigureEvent *) &ev;
@@ -402,10 +405,9 @@ int main (int argc, char **argv)
 						size_change = 1;
 					} break;
 
-					// Get keyboard input
-					// TODO: might need to implement custom keyboard polling from socket
-					// awkward approach due to lag between key press and receiving event
+				*/
 				case KeyPress:
+					// counts num key presses, does NOT confirm key is down
 					{
 						XKeyPressedEvent *e = (XKeyPressedEvent *) &ev;
 						int key = key_x_to_sp(e);
@@ -417,6 +419,7 @@ int main (int argc, char **argv)
 
 		// handle window size changes
 		// if window size changes reallocate pixel_buf
+		/*
 		if (size_change) {
 			size_change = 0;
 			XDestroyImage(x_data.x_window_buffer);
@@ -429,10 +432,8 @@ int main (int argc, char **argv)
 					x_data.pixel_buf, x_data.width, x_data.height, 
 					x_data.pixel_bytes * 8, 0);
 		}
+		*/
 
-		// TODO can make more efficient if size_change is not triggered when window is moved 
-		// only when actually resized
-		//
 		// call to sp_plus update and render service
 		sp_plus_update_and_render(
 				sp_state, x_data.pixel_buf, x_data.width,
