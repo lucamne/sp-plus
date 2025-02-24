@@ -7,41 +7,32 @@ PLATFORM STUFF
 
 PROGRAM STUFF
 ------------------------------------------
+Think about mixing and node processing design
+	I want to delete samples and their corresponding bus but I do not kow what references the bus
 
 SAMPLER
 ----------------------------------
-Add escape to cancel moves and chops
-
-Create dialog window to assist with copy/move/chop
+Fix copy and move empty samples bug
 
 Sample Pad manipulation
 	chop sample to other pads
 
-Create some kind of sample init function 
-	specifically because speed cannot be 0
-	Setup bus connections
+Sample init process may need improvements
 
 Might want to switch to linked list for bus_ins
 
-
-Make sure Right Shift works the same as left shift
-Add Current sample kill in addition to kill all samples
-
 File Browser
 -----------------------------------------
-Load single file into sampler
-	Get file path from user
-	check file exists
-	Load file data
-	Get desired bank and pad
-	add tab completetion
+Allow traversal into and ot of folders
+
+Change working directory
 
 Load folder into sampler
 
-Rethink keyboard input
-
 MISC
 ----------------------------------
+Consider making platform_load_entire_file not responsible for allocation
+	idk how this would work
 Add help / command line
 Add error log screen
 

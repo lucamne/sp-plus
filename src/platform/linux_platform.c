@@ -3,6 +3,8 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
+#include <dirent.h>
+#include <errno.h>
 
 #include "linux_audio.c"
 
@@ -89,6 +91,18 @@ static int key_x_to_sp(XKeyEvent *ev)
 			return KEY_SHIFT_L;
 		case XK_Shift_R:
 			return KEY_SHIFT_R;
+		case XK_Up:
+			return KEY_UP;
+		case XK_Down:
+			return KEY_DOWN;
+		case XK_Left:
+			return KEY_LEFT;
+		case XK_Right:
+			return KEY_RIGHT;
+		case XK_Tab:
+			return KEY_TAB;
+		case XK_Escape:
+			return KEY_ESCAPE;
 		default:
 			return -1;
 	}
@@ -157,6 +171,18 @@ static int key_sp_to_x (Display *d, int key)
 			return XKeysymToKeycode(d, XK_Shift_L);
 		case KEY_SHIFT_R:
 			return XKeysymToKeycode(d, XK_Shift_R);
+		case KEY_UP:
+			return XKeysymToKeycode(d, XK_Up);
+		case KEY_DOWN:
+			return XKeysymToKeycode(d, XK_Down);
+		case KEY_LEFT:
+			return XKeysymToKeycode(d, XK_Left);
+		case KEY_RIGHT:
+			return XKeysymToKeycode(d, XK_Right);
+		case KEY_TAB:
+			return XKeysymToKeycode(d, XK_Tab);
+		case KEY_ESCAPE:
+			return XKeysymToKeycode(d, XK_Escape);
 		default:
 			return -1;
 	}
@@ -347,24 +373,24 @@ int main (int argc, char **argv)
 		char curr_keystate[32];
 		XQueryKeymap(x_data.display, curr_keystate);
 
-		for (int sp_key = 0; sp_key < KEY_SHIFT_R; sp_key++) {
+		for (int sp_key = 0; sp_key <= KEY_ESCAPE; sp_key++) {
 
 			const int keycode = key_sp_to_x(x_data.display, sp_key);
 			if (keycode < 0 || keycode >= 256) continue;
 
 			const int i = keycode / 8;
-			const int state_mask = 0b1 << (keycode % 8);
+			const int state_mask = 1ULL << (keycode % 8);
 
 			// if key is down
 			if (curr_keystate[i] & state_mask) {
 				if (!(last_keystate[i] & state_mask)){
-					input.key_pressed |= 0b1 << sp_key;
+					input.key_pressed |= 1ULL << sp_key;
 				}
-				input.key_down |= 0b1 << sp_key;
+				input.key_down |= 1ULL << sp_key;
 			}
 			// if key is up
 			else if (last_keystate[i] & state_mask && curr_keystate[i] ^ state_mask) {
-				input.key_released |= 0b1 << sp_key;
+				input.key_released |= 1ULL << sp_key;
 			}
 
 		}
@@ -519,4 +545,44 @@ long platform_load_entire_file(void **buffer, const char *path)
 void platform_free_file_buffer(void **buffer) 
 { 
 	if (*buffer) free(*buffer); 
+}
+
+SP_DIR *platform_opendir(const char *path)
+{
+	return (SP_DIR *) opendir(path);
+}
+
+int platform_closedir(SP_DIR *dir) 
+{
+	return closedir((DIR *) dir);
+}
+
+int platform_num_items_in_dir(SP_DIR *dir)
+{
+	int count = 0;
+	errno = 0;
+	while (readdir((DIR *) dir)) {
+		count++;
+	}
+	rewinddir(dir);
+	
+	if(errno) return -1;
+	return count;
+}
+
+int platform_read_next_item(SP_DIR *dir, char **path)
+{
+	struct dirent *d;
+	errno = 0;
+	d = readdir((DIR *) dir);
+	if (d) {
+		*path = malloc(sizeof(char) * (strlen(d->d_name) + 1));
+		strcpy(*path, d->d_name);
+		return 0;
+
+	} else if(errno) {
+		return -1;
+	}
+
+	return 1;
 }

@@ -1,5 +1,9 @@
-Sampler Commands
+General
+-----------------
+Switch control modes: TAB
 
+Sampler Commands
+------------------
 Trigger Samples: Q, W, E, R, A, S, D, F (Hold Shift to switch to sample without triggering)
 Pitch Up/Down: O / Shift + O
 Switch Gate mode: G
@@ -11,3 +15,11 @@ Increase/Decrease Release: K / Shift + K
 Zoom In/Out: = / -
 Reverse Playback: V
 Kill All samples: X
+Kill active sample: Z
+Swap samples: M
+Copy sample: C
+
+File Browser
+-----------------
+Scroll Up/Down: Up-Arrow / Down-Arrow
+Load sample into pad: Right-Arrow

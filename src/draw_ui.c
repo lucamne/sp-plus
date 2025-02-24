@@ -168,7 +168,7 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
 
 	// bank
-	txt_pos.y += font_h + 2;
+	txt_pos.y += font_h;
 	snprintf(txt, 64, "bank: %d/%d", sp_state->sampler.curr_bank + 1, sp_state->sampler.num_banks);
 	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
@@ -199,11 +199,11 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 	snprintf(txt, 64, "total length: %01d:%02d", times[0], times[1]);
 	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
-	txt_pos.y += font_h + 2;
+	txt_pos.y += font_h;
 	snprintf(txt, 64, "active length: %01d:%02d", times[2], times[3]);
 	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
-	txt_pos.y += font_h + 2;
+	txt_pos.y += font_h;
 	snprintf(txt, 64, "playback: %01d:%02d", times[4], times[5]);
 	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
@@ -222,8 +222,8 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 		draw_rec_outline(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
 	
 	// reverse
-	txt_pos.y += font_h + 2;
-	rec_pos.y += font_h + 2;
+	txt_pos.y += font_h;
+	rec_pos.y += font_h;
 	strcpy(txt, "reverse:");
 
 	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
@@ -233,7 +233,7 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 		draw_rec_outline(buffer, rec_pos, font_h - 2, font_h - 2, WHITE);
 
 	// loop
-	txt_pos.y += font_h + 2;
+	txt_pos.y += font_h;
 	char *loop_mode;
 	switch (active_sample->loop_mode) {
 		case LOOP:
@@ -252,23 +252,54 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
 	// attack / release
-	txt_pos.y += font_h + 2;
+	txt_pos.y += font_h;
 	snprintf(txt, 64, "attack: %.0fms", frames_to_ms(active_sample->attack));
 	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
-	txt_pos.y += font_h + 2;
+	txt_pos.y += font_h;
 	snprintf(txt, 64, "release: %.0fms", frames_to_ms(active_sample->release));
 	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
 	// pitch / speed
-	txt_pos.y += font_h + 2;
+	txt_pos.y += font_h;
 	snprintf(txt, 64, "pitch: %+.0fst", roundf(speed_to_st(fabs(active_sample->speed))));
 	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
-	txt_pos.y += font_h + 2;
+	txt_pos.y += font_h;
 	snprintf(txt, 64, "speed: %.2fx", fabs(active_sample->speed));
 	draw_text(buffer, txt, curr_font, txt_pos, WHITE);
 
+
+	///////////////////////////////////////////////////////////////////////////////
+	/// Move dialog box
+
+	if (sp_state->sampler.move_mode) {
+		txt_pos.y += 2 * font_h;
+		if(sp_state->sampler.move_mode == SWAP) 
+			draw_text(buffer, "swapping...", curr_font, txt_pos, WHITE);
+		else 
+			draw_text(buffer, "copying...", curr_font, txt_pos, WHITE);
+
+		txt_pos.y += font_h;
+		if (sp_state->sampler.pad_src) {
+			// if source has been chosen
+			snprintf(	txt, 64, "source: %d%c", 
+					sp_state->sampler.pad_src_bank + 1, 
+					pad_to_char(sp_state->sampler.pad_src_pad));
+			draw_text(buffer, txt, curr_font, txt_pos, WHITE);
+
+			txt_pos.y += font_h;
+			draw_text(buffer, "dest: <tap pad>", curr_font, txt_pos, WHITE);
+		} else {
+			// if source has not been chosen
+			draw_text(buffer, "source: <tap pad>", curr_font, txt_pos, WHITE);
+			txt_pos.y += font_h;
+			draw_text(buffer, "dest:", curr_font, txt_pos, WHITE);
+		}
+
+		txt_pos.y += font_h;
+		draw_text(buffer, "<esc> to cancel", curr_font, txt_pos, WHITE);
+	}
 
 	////////////////////////////////////////////////////////////////////////////////
 	/// Sample Pads

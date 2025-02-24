@@ -6,7 +6,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// TODO should not be named audio_types
+// TODO might want to make a pad struct that holds reference to a sample 
+// and contains information about its bank and pad
 
 // registers sampler module state
 enum Pad { PAD_Q = 0, PAD_W, PAD_E, PAD_R, PAD_A, PAD_S, PAD_D, PAD_F };
@@ -27,10 +28,12 @@ struct sampler {
 
 	enum {
 		NONE,
-		MOVE,
+		SWAP,
 		COPY
 	} move_mode;
 	struct sample **pad_src;	// pad to move or copy sample from
+	int pad_src_bank;		// tracks the bank of the pad src
+	int pad_src_pad;		// tracks the pad of the pad src
 
 	int max_vert;			// max vertices to render in wave viewer
 };
@@ -100,11 +103,26 @@ struct font {
 	int height;		// font height approx in pixels
 };
 
+struct file_browser {
+	char *working_dir;
+	char **files;		// files in working dir including folders
+	int num_files;
+
+	int selected_file;	// index of currently selected file
+	int loading_to_pad;	// true iff waiting for pad destination to load file
+};
+
 // program state held by platform code
 struct sp_state {
 	struct bus master;
 	struct sampler sampler;
+	struct file_browser file_browser;
 	struct font fonts[NUM_FONTS]; // array of fonts
+
+	enum {
+		SAMPLER = 0,
+		FILE_BROWSER
+	} control_mode;
 };
 
 
