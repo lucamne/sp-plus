@@ -38,11 +38,13 @@ struct sampler {
 	int max_vert;			// max vertices to render in wave viewer
 };
 
+// TODO will change when more mixer code is written
 // Used to route and mix audio data
-// Can have many bus inputs but only one sample input
 // In practice busses will only have one output
 struct bus {
-	struct sample* sample_in;	// sample inputs
+	struct sample** sample_ins;	// sample inputs
+	int num_sample_ins;
+
 	struct bus** bus_ins;		// bus inputs
 	int num_bus_ins;
 

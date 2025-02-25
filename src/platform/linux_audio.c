@@ -357,7 +357,7 @@ snd_pcm_t *start_alsa(struct sp_state *sp_state)
 	int err;
 	snd_pcm_uframes_t buffer_size, period_size;
 	// TODO make device configurable
-	const char* dev_id = "plughw:0,0";
+	const char* dev_id = "plughw:1,0";
 	snd_pcm_t *pcm;
 
 	snd_pcm_hw_params_t* hwparams;

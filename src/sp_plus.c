@@ -123,26 +123,43 @@ static double get_envelope_gain(struct sample* s)
 	return g;
 }
 
+// TODO could use this instead of double out[] in other process functions
+struct frame_data {
+	double l;
+	double r;
+};
+
 // get next frame and apply envelope gain
-static int process_next_frame(double out[], struct sample* s)
+static struct frame_data process_next_frame(/*double out[], */struct sample* s)
 {
-	if (!s) return 1;
+	struct frame_data out = {0};
+	if (!s) return out;
 	// need to interpolate fractional next_frame
 	const int32_t base_frame  = s->next_frame;
 	const double ratio = s->next_frame - base_frame;
-	for (int c = 0; c < NUM_CHANNELS; c++)
-	{
-		out[c] = s->data[base_frame * NUM_CHANNELS + c] * (1 - ratio);
-		out[c] += s->data[(base_frame + 1) * NUM_CHANNELS + c] * ratio;
-		if (s->gate_closed) {
-			out[c] *= (s->gate_release - s->gate_release_cnt) /
-				s->gate_release;
-			out[c] *= s->gate_close_gain;
-		}
-		out[c] *= get_envelope_gain(s);
+	
+	// left
+	out.l = s->data[base_frame * NUM_CHANNELS] * (1 - ratio);
+	out.l += s->data[(base_frame + 1) * NUM_CHANNELS] * ratio;
+	if (s->gate_closed) {
+		out.l *= (s->gate_release - s->gate_release_cnt) /
+			s->gate_release;
+		out.l *= s->gate_close_gain;
 	}
+	out.l *= get_envelope_gain(s);
+
+	// right
+	out.r = s->data[base_frame * NUM_CHANNELS + 1] * (1 - ratio);
+	out.r += s->data[(base_frame + 1) * NUM_CHANNELS + 1] * ratio;
+	if (s->gate_closed) {
+		out.r *= (s->gate_release - s->gate_release_cnt) /
+			s->gate_release;
+		out.r *= s->gate_close_gain;
+	}
+	out.r *= get_envelope_gain(s);
+
 	increment_frame(s);
-	return 0;
+	return out;
 }
 
 // TODO: can probably make this stuff wayyyyy move efficient
@@ -151,14 +168,17 @@ static int process_next_frame(double out[], struct sample* s)
 // a single sample input.
 static void process_leaf_nodes(double out[], struct bus* b)
 {
-	// process sample input
-	struct sample* s = b->sample_in;
-	if (s && s->playing) {
-		double tmp_out[NUM_CHANNELS] = { 0.0, 0.0 };
-		process_next_frame(tmp_out, s);
-		out[0] += tmp_out[0];
-		out[1] += tmp_out[1];
+	// process samples
+	for (int i = 0; i < b->num_sample_ins; i++) {
+		if(b->sample_ins[i]->playing) {
+			// double tmp_out[NUM_CHANNELS] = {0};
+			struct frame_data tmp_out = process_next_frame(/*tmp_out, */b->sample_ins[i]);
+			out[0] += tmp_out.l;
+			out[1] += tmp_out.r;
+		}
 	}
+
+
 	// process bus inputs
 	for (int i = 0; i < b->num_bus_ins; i++)
 		process_leaf_nodes(out, b->bus_ins[i]);
@@ -536,13 +556,13 @@ void *sp_plus_allocate_state(void)
 	struct sample *new_samp = load_sample_from_wav(WAV1);
 
 	if (new_samp) {
-		sampler->banks[0][PAD_Q] = new_samp;
+	sampler->banks[0][PAD_Q] = new_samp;
 	}
 
 	struct bus *b1 = calloc(sizeof(struct bus), 0);
 	if (!b1) {
-		fprintf(stderr, "Error allocating state memory\n");
-		exit(1);
+	fprintf(stderr, "Error allocating state memory\n");
+	exit(1);
 	}
 
 	b1->sample_in = s->sampler.banks[0][PAD_Q];
@@ -550,8 +570,8 @@ void *sp_plus_allocate_state(void)
 	s->master.num_bus_ins = 1;
 	s->master.bus_ins = malloc(sizeof(struct bus *) * 1);
 	if (!s->master.bus_ins) {
-		fprintf(stderr, "Error initializing master bus\n");
-		exit(1);
+	fprintf(stderr, "Error initializing master bus\n");
+	exit(1);
 	}
 	s->master.bus_ins[0] = b1;
 	*/
@@ -665,11 +685,8 @@ static inline void process_pad_press(struct sp_state *sp_state, struct key_input
 					struct sample **dest_pad = banks[curr_bank] + pad;
 					if (!*dest_pad){
 						*dest_pad = malloc(sizeof(struct sample));
-						struct bus *new_bus = calloc(1, sizeof(struct bus));
-						// attach new sample to bus
-						new_bus->sample_in = *dest_pad;
-						sp_state->master.bus_ins = realloc(sp_state->master.bus_ins, sizeof(struct bus *) * ++(sp_state->master.num_bus_ins));
-						sp_state->master.bus_ins[sp_state->master.num_bus_ins - 1] = new_bus;
+						sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * ++(sp_state->master.num_sample_ins));
+						sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1] = *dest_pad;
 					} else {
 						if ((*dest_pad)->data) free((*dest_pad)->data);
 					}
@@ -873,6 +890,7 @@ static void update_sampler(struct sp_state *sp_state, struct key_input *input)
 	}
 }
 
+// TODO currently routes all audio to master
 static inline void load_sample_from_browser(struct sp_state *sp_state, int pad)
 {
 	struct file_browser *fb = &sp_state->file_browser;
@@ -894,15 +912,32 @@ static inline void load_sample_from_browser(struct sp_state *sp_state, int pad)
 
 	if (new_samp) {
 		struct sample **dest_pad = sampler->banks[sampler->curr_bank] + pad;
+
+		// if target pad is occupied delete that sample
 		if (*dest_pad) {
-			// free_sample(dest_pad);
-		} else {
-			*dest_pad = new_samp;
-			struct bus *new_bus = calloc(1, sizeof(struct bus));
-			new_bus->sample_in = *dest_pad;
-			sp_state->master.bus_ins = realloc(sp_state->master.bus_ins, sizeof(struct bus *) * ++(sp_state->master.num_bus_ins));
-			sp_state->master.bus_ins[sp_state->master.num_bus_ins - 1] = new_bus;
-		}
+			// remove sample ptr from master bus
+			// TODO will need to generalize to aux busses later
+			for (int i = 0; i < sp_state->master.num_sample_ins; i++) {
+				if (sp_state->master.sample_ins[i] == *dest_pad) {
+					sp_state->master.sample_ins[i] = sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1];
+					sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * --(sp_state->master.num_sample_ins));
+					break;
+				}
+			}
+
+			// free sample
+			if ((*dest_pad)->path) free((*dest_pad)->path);
+			if ((*dest_pad)->data) free((*dest_pad)->data);
+			free(*dest_pad);
+
+		} 
+
+		// assign new sample to pad
+		*dest_pad = new_samp;
+		sp_state->sampler.active_sample = new_samp;
+		sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * ++(sp_state->master.num_sample_ins));
+		sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1] = new_samp;
+
 	}
 	fb->loading_to_pad = 0;
 }
