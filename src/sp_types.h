@@ -105,9 +105,16 @@ struct font {
 	int height;		// font height approx in pixels
 };
 
+// file item information
+struct file_item {
+	char *name;		// name is relative to file_browser working directory
+				// TODO might change that in the future
+	int is_dir;		// true if file is a directory
+};
+
 struct file_browser {
 	char *working_dir;
-	char **files;		// files in working dir including folders
+	struct file_item *files;
 	int num_files;
 
 	int selected_file;	// index of currently selected file

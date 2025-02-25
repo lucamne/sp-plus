@@ -1,4 +1,4 @@
-#include "raster.h"
+#include "sp_raster.h"
 
 static char pad_to_char(int pad)
 {

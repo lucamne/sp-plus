@@ -74,12 +74,12 @@ int platform_closedir(SP_DIR *dir);
 // closes dir opened by platform_opendir
 // returns 0 on success on -1 on failure
 
-int platform_num_items_in_dir(SP_DIR *dir);
+int platform_num_valid_items_in_dir(SP_DIR *dir);
 // SP_DIR* returned by platform_opendir
-// return number of items in directory
+// return number of wavs or directories not including "./" in dir
 // returns -1 on error
 
-int platform_read_next_item(SP_DIR *dir, char **path);
+int platform_read_next_valid_item(SP_DIR *dir, char **path, int *is_dir);
 // takes SP_DIR* returned by platform_opendir and a ptr to a string
 // Reads the path of the next entry into path
 // this function WILL allocate path appropriately

@@ -14,7 +14,7 @@ if [ "$1" == "c" ]; then
 fi
 
 TARGET="../bin/sp-plus"
-SRC="platform/linux_platform.c sp_plus.c raster.c"
+SRC="platform/linux_platform.c sp_plus.c sp_raster.c"
 
 # pass 'r' for release mode
 if [ "$1" == "r" ]; then

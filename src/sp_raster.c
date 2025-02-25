@@ -1,4 +1,4 @@
-#include "raster.h"
+#include "sp_raster.h"
 #include "sp_plus_assert.h"
 
 #include "stb_truetype.h"

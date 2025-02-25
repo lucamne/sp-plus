@@ -5,6 +5,7 @@
 #include <X11/Xutil.h>
 #include <dirent.h>
 #include <errno.h>
+#include <sys/stat.h>
 
 #include "linux_audio.c"
 
@@ -557,32 +558,67 @@ int platform_closedir(SP_DIR *dir)
 	return closedir((DIR *) dir);
 }
 
-int platform_num_items_in_dir(SP_DIR *dir)
+// checks if file is valid:
+// is a .wav or
+// is a directory and
+// is not "./" directory
+static inline int is_wav_or_dir(struct dirent *d)
+{
+	const char *name = d->d_name;
+	int len = strlen(name);
+
+	return 	(d->d_type == DT_DIR && !(len == 1 && name[0] == '.')) ||	// is dir and not "./"
+		(len >= 4 && *((uint32_t *) (name + len - 4)) == 0x7661772e); // or is .wav
+
+}
+
+/*
+// does file have a wav extension
+static inline int is_wav(const char *name)
+{
+	int len = strlen(name);
+	return len >= 4 && *((uint32_t *) (name + len - 4)) == 0x7661772e;
+}
+
+// is file "." directory
+static inline int is_self_dir(const char *name)
+{
+	return strlen(name) == 1 && name[0] == '.';
+}
+*/
+
+int platform_num_valid_items_in_dir(SP_DIR *dir)
 {
 	int count = 0;
 	errno = 0;
-	while (readdir((DIR *) dir)) {
-		count++;
+	struct dirent *d;
+	while (d = readdir((DIR *) dir)) {
+		if (is_wav_or_dir(d)){
+			count++;
+		}
 	}
 	rewinddir(dir);
-	
+
 	if(errno) return -1;
 	return count;
 }
 
-int platform_read_next_item(SP_DIR *dir, char **path)
+int platform_read_next_valid_item(SP_DIR *dir, char **path, int *is_dir)
 {
-	struct dirent *d;
 	errno = 0;
-	d = readdir((DIR *) dir);
-	if (d) {
+	struct dirent *d; 
+	while (d = readdir((DIR *) dir)) {
+		// skip non wav and non directory files
+		if (!is_wav_or_dir(d)){
+			continue;
+		}
+
 		*path = malloc(sizeof(char) * (strlen(d->d_name) + 1));
 		strcpy(*path, d->d_name);
+		*is_dir = d->d_type == DT_DIR;
 		return 0;
-
-	} else if(errno) {
-		return -1;
-	}
-
+	} 
+	// return -1 on error and 1 on end of dir
+	if(errno) return -1;
 	return 1;
 }
