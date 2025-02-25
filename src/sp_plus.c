@@ -679,24 +679,29 @@ static inline void process_pad_press(struct sp_state *sp_state, struct key_input
 					sampler->pad_src_bank = curr_bank;
 					sampler->pad_src_pad = pad;
 				} else {
+					// if src pad is occupied
 					// copy sample pad from pad_src to this pad
 					// if new pad is empty then allocate another sample 
 					// otherwise free audio data of sample at dest pad
-					struct sample **dest_pad = banks[curr_bank] + pad;
-					if (!*dest_pad){
-						*dest_pad = malloc(sizeof(struct sample));
-						sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * ++(sp_state->master.num_sample_ins));
-						sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1] = *dest_pad;
-					} else {
-						if ((*dest_pad)->data) free((*dest_pad)->data);
-					}
+					if (*sampler->pad_src) {
+						struct sample **dest_pad = banks[curr_bank] + pad;
+						
+						// if dest_pad is not occupied
+						if (!*dest_pad){
+							*dest_pad = malloc(sizeof(struct sample));
+							sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * ++(sp_state->master.num_sample_ins));
+							sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1] = *dest_pad;
+						} else {
+							if ((*dest_pad)->data) free((*dest_pad)->data);
+						}
 
-					**dest_pad = **sampler->pad_src;
-					if((*dest_pad)->playing) kill_sample(*dest_pad);
-					// copy data
-					int64_t data_size = sizeof(double) * (*dest_pad)->num_frames * NUM_CHANNELS;
-					(*dest_pad)->data = malloc(data_size);
-					memcpy((*dest_pad)->data, (*sampler->pad_src)->data, data_size);
+						**dest_pad = **sampler->pad_src;
+						if((*dest_pad)->playing) kill_sample(*dest_pad);
+						// copy data
+						int64_t data_size = sizeof(double) * (*dest_pad)->num_frames * NUM_CHANNELS;
+						(*dest_pad)->data = malloc(data_size);
+						memcpy((*dest_pad)->data, (*sampler->pad_src)->data, data_size);
+					}
 
 					sampler->move_mode = NONE;
 					sampler->pad_src = NULL;
