@@ -1,5 +1,8 @@
 #include "sp_raster.h"
 
+////////////////////////////////////////////////////////////////////////
+/// Sampler
+
 static char pad_to_char(int pad)
 {
 	switch (pad) {
@@ -135,21 +138,24 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 		active_sample = &DUMMY_SAMPLE;
 
 	// sets position of sampler on screen
-	const vec2i origin = {350, 0};
+	const vec2i origin = {500, 0};
 	const int BORDER_W = 800;
 	const int BORDER_H = 400;
 	const int VIEWER_W = BORDER_W * 3 / 4;
 	const int VIEWER_H = BORDER_H * 3 / 4;
 	const vec2i WAVE_ORIGIN = {origin.x + 10, origin.y + VIEWER_H / 2};
 
-	// border pane
-	draw_rec_outline(buffer, origin, BORDER_W, BORDER_H, WHITE);
 	// waveform viewer pane
 	draw_rec_outline(buffer, origin, VIEWER_W, VIEWER_H, WHITE);
 	// draw control pane
 	const vec2i control_s = {origin.x + VIEWER_W - 1, origin.y + VIEWER_H - 1};
 	const vec2i control_e = {origin.x + VIEWER_W - 1, origin.y + BORDER_H - 1};
 	draw_line(buffer, control_s, control_e, WHITE);
+	// border pane
+	if (sp_state->control_mode == SAMPLER)
+		draw_rec_outline(buffer, origin, BORDER_W, BORDER_H, RED);
+	else
+		draw_rec_outline(buffer, origin, BORDER_W, BORDER_H, WHITE);
 
 	// draw waveform
 	draw_waveform(sp_state, buffer, WAVE_ORIGIN, VIEWER_W - 20, VIEWER_H - 20);
@@ -164,7 +170,20 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 	// filename
 	txt_pos.x = origin.x + 10;
 	txt_pos.y = origin.y + VIEWER_H;
-	snprintf(txt, 64, "filename: %s", active_sample->path);
+	int max_filepath_width = VIEWER_W - 20 - get_text_width("file: ", curr_font);
+
+	if (get_text_width(active_sample->path, curr_font) > max_filepath_width) {
+		char *file_path = truncate_text_to_width(
+				active_sample->path, 
+				curr_font, 
+				max_filepath_width - get_text_width("...", curr_font)
+				, 1);
+
+		snprintf(txt, 64, "file: ...%s", file_path);
+		free(file_path);
+	} else {
+		snprintf(txt, 64, "file: %s", active_sample->path);
+	}
 	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
 
 	// bank
@@ -381,4 +400,75 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 	else
 		draw_rec(buffer, pad_pos, PAD_WIDTH, PAD_HEIGHT, WHITE);
 	draw_text(buffer, "F", curr_font, label_pos, BLACK);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+/// File Browser
+
+static void draw_file_browser(struct sp_state *sp_state, struct pixel_buffer *pix_buff)
+{
+	struct file_browser *fb = &sp_state->file_browser;
+	ASSERT(fb);
+
+	vec2i origin = {0, 0};
+	const struct font *curr_font = sp_state->fonts + MED;
+
+	const int BORDER_H = 400;
+	const int BORDER_W = 300;
+	const int HEADER_H = 25;
+
+	const int FILE_SPACING = curr_font->height + 5;
+	const int MAX_FILES = (BORDER_H - HEADER_H) / FILE_SPACING;
+
+	// draw border and header
+	vec2i header_pos = {origin.x, origin.y + HEADER_H};
+	draw_line(pix_buff, header_pos, (vec2i) {header_pos.x + BORDER_W - 1, header_pos.y}, WHITE); 
+	if (sp_state->control_mode == FILE_BROWSER)
+		draw_rec_outline(pix_buff, origin, BORDER_W, BORDER_H, RED);
+	else 
+		draw_rec_outline(pix_buff, origin, BORDER_W, BORDER_H, WHITE);
+
+	char txt[64];
+	vec2i txt_pos = {origin.x + 5, origin.y};
+
+	// directory text
+	int max_dir_width = BORDER_W - 10 - get_text_width("dir: ", curr_font);
+	if (get_text_width(fb->dir, curr_font) > max_dir_width ) {
+		char *dir_path = truncate_text_to_width(
+				fb->dir, 
+				curr_font, 
+				max_dir_width - get_text_width("...", curr_font),
+				1);
+		snprintf(txt, 64, "dir: ...%s", dir_path);
+		free(dir_path);
+	} else {
+		snprintf(txt, 64, "dir: %s", fb->dir);
+	}
+	draw_text(pix_buff, txt, curr_font, txt_pos, WHITE);
+
+	// file list
+	// determine fov
+	int start_index = 0;
+	if (fb->selected_file >= MAX_FILES / 2)
+		start_index = fb->selected_file - MAX_FILES / 2;
+	if (fb->num_files >= MAX_FILES && fb->num_files - start_index < MAX_FILES)
+		start_index = fb->num_files - MAX_FILES;
+
+	// draw files
+	txt_pos.y += HEADER_H;
+	for (int i = start_index; i < start_index + MAX_FILES && i < fb->num_files; i++) {
+		// highlight selected file
+		if (i == fb->selected_file) {
+			draw_rec(pix_buff, (vec2i) {origin.x + 1, txt_pos.y}, BORDER_W - 2, FILE_SPACING, WHITE);
+		}
+
+		strncpy(txt, fb->files[i].name, 64);
+		if (fb->files[i].is_dir) draw_text(pix_buff, txt, curr_font, txt_pos, RED);
+		else if (i == fb->selected_file) draw_text(pix_buff, txt, curr_font, txt_pos, BLACK);
+		else draw_text(pix_buff, txt, curr_font, txt_pos, WHITE);
+
+		txt_pos.y += FILE_SPACING;
+
+	}
 }

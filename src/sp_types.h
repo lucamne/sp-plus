@@ -16,24 +16,27 @@ struct sampler {
 	int num_banks;
 
 	struct sample *active_sample;	// current sample to display
-	int curr_pad;			// current pad to display (corresponds to active_sample)
 	int curr_bank;			// currently selected sample bank
-
-	int zoom;			// wave viewer zoom
-	enum { 
-		PLAY, 
-		START, 
-		END 
-	} zoom_focus;			// focal point of zoom
 
 	enum {
 		NONE,
 		SWAP,
 		COPY
 	} move_mode;
+
 	struct sample **pad_src;	// pad to move or copy sample from
 	int pad_src_bank;		// tracks the bank of the pad src
 	int pad_src_pad;		// tracks the pad of the pad src
+
+	// ui state info
+	int curr_pad;			// current pad to display (corresponds to active_sample)
+	int zoom;			// wave viewer zoom
+					//
+	enum { 
+		PLAY, 
+		START, 
+		END 
+	} zoom_focus;			// focal point of zoom
 
 	int max_vert;			// max vertices to render in wave viewer
 };
@@ -113,7 +116,7 @@ struct file_item {
 };
 
 struct file_browser {
-	char *working_dir;
+	char *dir;
 	struct file_item *files;
 	int num_files;
 

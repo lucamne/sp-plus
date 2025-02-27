@@ -86,4 +86,13 @@ int platform_read_next_valid_item(SP_DIR *dir, char **path, int *is_dir);
 // The caller is responsible for freeing path when they are done with it
 // Returns 0 on success, 1 on no more entries, and -1 on failure
 
+char *platform_get_realpath(const char * dir);
+// resolves absolute path to real path
+// allocates a text buffer large enough to hold resolved path
+// caller must free this text buffer when done with it
+// returns NULL on error
+
+char *platform_get_parent_dir(const char *dir);
+// returns parent dir or NULL on error
+
 #endif

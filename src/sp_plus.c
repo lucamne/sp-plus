@@ -290,7 +290,6 @@ void sp_plus_update_and_render(
 	}
 
 	/// Draw UI
-
 	struct pixel_buffer buffer = { 
 		pixel_buf, 
 		pixel_bytes, 
@@ -298,7 +297,6 @@ void sp_plus_update_and_render(
 		pixel_height};
 
 	clear_pixel_buffer(&buffer);
-	// fill_pixel_buffer(&buffer, RED);
-
 	draw_sampler(sp_state, &buffer);
+	draw_file_browser(sp_state, &buffer);
 }

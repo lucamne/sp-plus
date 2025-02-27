@@ -70,5 +70,11 @@ void load_font(struct font *font, void *ttf_buffer, int pix_height);
 // Populates a font struct which can be passed to draw text
 void draw_text(const struct pixel_buffer *pix_buff, const char *text, const struct font *font, vec2i pos, Color c);
 // draws text from top left (not super exact)
-
+int get_text_width (const char *text, const struct font *font);
+// returns the width of text in pixels
+char *truncate_text_to_width(const char *text, const struct font *font, int max_width, int trunc_start);
+// truncates text to fit within pixel width 
+// if trunc start is true then the beginning is truncated, otherwise the end is truncated
+// allocates new char array that the user is responsible for freeing
+// returns NULL on error or new string length of 0
 #endif

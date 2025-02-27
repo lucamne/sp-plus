@@ -567,25 +567,15 @@ static inline int is_wav_or_dir(struct dirent *d)
 	const char *name = d->d_name;
 	int len = strlen(name);
 
-	return 	(d->d_type == DT_DIR && !(len == 1 && name[0] == '.')) ||	// is dir and not "./"
-		(len >= 4 && *((uint32_t *) (name + len - 4)) == 0x7661772e); // or is .wav
+	// false if "./" or "../"
+	if (len == 1 && name[0] == '.') return 0;
+	if (len == 2 && name[0] == '.' && name[1] == '.') return 0;
+	// otherwise true if dir or .wav extension
+	if (d->d_type == DT_DIR) return 1;
+	if (len >= 4 && *((uint32_t *) (name + len - 4)) == 0x7661772e) return 1;
 
+	return 0;
 }
-
-/*
-// does file have a wav extension
-static inline int is_wav(const char *name)
-{
-	int len = strlen(name);
-	return len >= 4 && *((uint32_t *) (name + len - 4)) == 0x7661772e;
-}
-
-// is file "." directory
-static inline int is_self_dir(const char *name)
-{
-	return strlen(name) == 1 && name[0] == '.';
-}
-*/
 
 int platform_num_valid_items_in_dir(SP_DIR *dir)
 {
@@ -621,4 +611,25 @@ int platform_read_next_valid_item(SP_DIR *dir, char **path, int *is_dir)
 	// return -1 on error and 1 on end of dir
 	if(errno) return -1;
 	return 1;
+}
+
+char *platform_get_realpath(const char * dir) 
+{
+	return realpath(dir, NULL);
+}
+
+char *platform_get_parent_dir(const char *dir)
+{
+	char *par_dir = malloc(sizeof(char) * (strlen(dir) + strlen("/..") + 1));
+	if (!par_dir) {
+		fprintf(stderr, "Error reaching parent directory\n");
+		return NULL;
+	}
+
+	strcpy(par_dir, dir);
+	strcat(par_dir, "/..");
+	
+	char *out = realpath(par_dir, NULL);
+	free(par_dir);
+	return out;
 }

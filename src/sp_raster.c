@@ -238,9 +238,6 @@ void draw_text(
 {
 	// pos = transform_vec2i(pix_buff, pos);
 	// real pixel per internal pixel
-	//
-	// TODO remove when scaled function is removed
-	// float scale = (float) pixel_height / FONT_SIZE;
 
 	pos.y += font->height;
 	int origin_x = pos.x;
@@ -255,16 +252,18 @@ void draw_text(
 			int x_pos = origin_x + bitmap_x + g->x_off;
 			x_off = g->x_off;
 
-			if (x_pos < 0) continue; 
-			if (x_pos >= pix_buff->width) break;
+			// TODO implement bounds checking later if needed
+			// if (x_pos < 0) continue; 
+			// if (x_pos >= pix_buff->width) break;
 
 			for (int bitmap_y = 0; bitmap_y < g->h; bitmap_y++) {
 				unsigned char curr_pix = g->bitmap[bitmap_y * g->w + bitmap_x];
 				if(curr_pix) {
 					int y_pos = pos.y + bitmap_y + g->y_off;
 
-					if (y_pos < 0) continue;
-					if (y_pos >= pix_buff->height) break;
+					// TODO implement bounds checking later if needed
+					// if (y_pos < 0) continue;
+					// if (y_pos >= pix_buff->height) break;
 
 					// align text to starting x position
 					if (c == text) 
@@ -282,4 +281,66 @@ void draw_text(
 		origin_x += g->w + x_off;
 		c++;
 	}
+}
+
+int get_text_width (const char *text, const struct font *font)
+{
+	if (!text || !font) return 0;
+
+	// don't want to add x_off to first char
+	const char *c = text;
+	const struct glyph *g = font->glyphs + *c - FIRST_ASCII_VAL;
+	int width = g->w;
+	c++;
+
+	while (*c != '\0') {
+		g = font->glyphs + *c - FIRST_ASCII_VAL;
+		width += g->w + g->x_off;
+		c++;
+	}
+	return width;
+}
+
+char *truncate_text_to_width(const char *text, const struct font *font, int max_width, int trunc_start)
+{
+	if (!text || !font) return NULL;
+
+	const char *c;
+	if (trunc_start) c = text + strlen(text) - 1;
+	else c = text;
+
+	// don't want to add x_off to first char
+	const struct glyph *g = font->glyphs + *c - FIRST_ASCII_VAL;
+	int width = g->w;
+	if (width > max_width) return NULL;
+
+	if (trunc_start) c--;
+	else c++;
+
+	while (*c != '\0' && c >= text) {
+		g = font->glyphs + *c - FIRST_ASCII_VAL;
+		width += g->w + g->x_off;
+
+		// once max is surpassed
+		if (width > max_width) {
+			char *new_str;
+			if (trunc_start) {
+				new_str = malloc(sizeof(char) * (strlen(text) - (c  - text) + 1));
+				strcpy(new_str, c + 1);
+			} else {
+				// '\0' accounted for by c - text being one larger 
+				// than the string that will fit in max_width
+				new_str = malloc(sizeof(char) * (c - text));
+				strncpy(new_str, text, c - text);
+			}
+			return new_str;
+		}
+
+		if (trunc_start) c--;
+		else c++;
+	}
+
+	char *new_str = malloc(sizeof(char) * (strlen(text) + 1));
+	strcpy(new_str, text);
+	return new_str;
 }

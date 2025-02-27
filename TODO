@@ -7,29 +7,27 @@ PLATFORM STUFF
 
 PROGRAM STUFF
 ------------------------------------------
-Think about mixing and node processing design
-	I want to delete samples and their corresponding bus but I do not kow what references the bus
+Implement a command interface for settings and maybe reading a config
 
 SAMPLER
 ----------------------------------
-Fix copy and move empty samples bug
-
 Sample Pad manipulation
 	chop sample to other pads
 
-Sample init process may need improvements
+may want pad struct to track sample as well as pad number
+	tracking current pad seperately is awkward
 
-Might want to switch to linked list for bus_ins
+Sample init process may need improvements
 
 File Browser
 -----------------------------------------
-Cancel sample load
+Create UI
 
-Allow traversal into and ot of folders
-
-Change working directory
+Enter working directory
+	Requires getting text input
 
 Load folder into sampler
+Pass a filter_file function to platform
 
 MISC
 ----------------------------------

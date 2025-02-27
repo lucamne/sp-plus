@@ -9,461 +9,6 @@ static char is_key_released(struct key_input *input, int key)
 static char is_key_down(struct key_input *input, int key) 
 {return input->key_down & 1ULL << key ? 1 : 0;}
 
-//////////////////////////////////////////////////////////////////////////////////////
-/// File Browser Update
-
-// change sample's sample rate from rate_in to rate_out
-static int resample(struct sample* s, int rate_in, int rate_out)
-{
-	double bandwidth = 0.95;  // bandwidth
-	double rp = 0.1; // passband ripple factor
-	double rs = 140; // stopband attenuation
-	double tol = 0.000001; // tolerance
-
-	// initialize smarc filter
-	struct PFilter* pfilt = smarc_init_pfilter(rate_in, rate_out, 
-			bandwidth, rp, rs, tol, NULL, 0);
-	if (!pfilt)
-		return -1;
-
-	struct PState* pstate[NUM_CHANNELS];
-	pstate[0] = smarc_init_pstate(pfilt);
-	pstate[1] = smarc_init_pstate(pfilt);
-
-	const int OUT_SIZE = 
-		(int) smarc_get_output_buffer_size(pfilt, s->num_frames);
-	double* outbuf = malloc(OUT_SIZE * sizeof(double));
-	double* left_inbuf = malloc(s->num_frames * sizeof(double));
-	double* right_inbuf = malloc(s->num_frames * sizeof(double));
-
-	if (!outbuf || !left_inbuf || !right_inbuf) {
-		fprintf(stderr, "Error allocating memory for resampling\n");
-		exit(1);
-	}
-
-	// extract left and right channels
-	for (int i = 0; i < s->num_frames; i++) {
-		left_inbuf[i] = s->data[i * NUM_CHANNELS];
-		right_inbuf[i] = s->data[i * NUM_CHANNELS + 1];
-	}
-	s->data = realloc(s->data, sizeof(double) * OUT_SIZE * NUM_CHANNELS);
-	if (!s->data)
-		return -1;
-
-	// resample left channel
-	int w = smarc_resample( pfilt, pstate[0], left_inbuf, 
-			s->num_frames, outbuf, OUT_SIZE);
-	for (int i = 0; i < w; i++)
-		s->data[i * NUM_CHANNELS] = outbuf[i];
-
-	// resample right channel
-	w = smarc_resample( pfilt, pstate[1], right_inbuf, 
-			s->num_frames, outbuf, OUT_SIZE);
-	for (int i = 0; i < w; i++)
-		s->data[i * NUM_CHANNELS + 1] = outbuf[i];
-
-	smarc_destroy_pstate(pstate[0]);
-	smarc_destroy_pstate(pstate[1]);
-	free(left_inbuf);
-	free(right_inbuf);
-	free(outbuf);
-	return w;
-}
-
-// used for debugging
-// TODO: delete and replace with logging
-static void print_sample(const struct sample* s)
-{
-	printf(
-			"***********************\n"
-			"Sample Info:\n"
-			"-----------------------\n"
-			"Frame size: %dB\n"
-			"Sample Rate: %dHz\n"
-			"Num Frames: %d\n"
-			"***********************\n",
-			s->frame_size,
-			s->rate,
-			s->num_frames);
-}
-
-// check endianess of system at runtime
-static bool is_little_endian(void)
-{
-	int n = 1;
-	if(*(char *)&n == 1) 
-		return true;
-	return false;
-}
-
-static inline void invalid_wav_file(void *buffer, struct sample *s, const char *path) 
-{
-	fprintf(stderr, "Unsupported file: %s\n", path);
-	platform_free_file_buffer(&buffer);
-	free(s);
-}
-
-// loads sample from a buffer in wav format
-// currently supports only non compressed WAV files
-// sample should be initialized before being passed to load_wav()
-// returns 0 iff success
-static struct sample *load_sample_from_wav(const char *path)
-{
-	// TODO support big_endian systems as well
-	if (!is_little_endian) {
-		fprintf(stderr, "Only little-endian systems are supported\n");
-		return NULL;
-	}
-
-	// load file
-	void *file_buffer = NULL;
-	long buf_bytes = platform_load_entire_file(&file_buffer, path);
-	if (!buf_bytes) {
-		fprintf(stderr, "Failed to open: %s\n", path);
-		return NULL;
-	}
-	char *buffer = (char *) file_buffer;
-
-
-	// init sample
-	struct sample *new_samp = calloc(1, sizeof(struct sample));
-	if (!new_samp) {
-		fprintf(stderr, "Error allocating sample");
-		platform_free_file_buffer(file_buffer);
-	}
-
-	new_samp->speed = 1.0;	
-	new_samp->path = malloc(sizeof(char) * (strlen(path) + 1));
-	if (new_samp->path) strcpy(new_samp->path, path);
-
-
-	// any read should not read the end_ptr or anything past it
-	// data is stored in 4 byte words
-	const char *end_ptr = buffer + buf_bytes;
-	const int word = 4;
-
-	/* parse headers */
-	// check for 'RIFF' tag bytes [0, 3]
-	if (*(int32_t *) buffer ^ 0x46464952) {
-		invalid_wav_file(file_buffer, new_samp, path);
-		return NULL;
-	}
-
-	// get master chunk_size 
-	buffer += word;
-	const int64_t mstr_ck_size = *(int32_t *) buffer;
-	// verify we won't access data outside buffer
-	// TODO more bounds checking should be added in case wav file is not properly formatted
-	if (buffer + word + mstr_ck_size > end_ptr) {
-		invalid_wav_file(file_buffer, new_samp, path);
-		return NULL;
-	}
-
-
-	// check for 'WAVE' tag
-	// TODO spec does not require wave tag here
-	buffer += word;
-	if (*(int32_t *) buffer ^ 0x45564157) {
-		invalid_wav_file(file_buffer, new_samp, path);
-		return NULL;
-	}
-
-
-	// check for 'fmt ' tag
-	buffer += word;
-	if (*(int32_t *) buffer ^ 0x20746D66) {
-		invalid_wav_file(file_buffer, new_samp, path);
-		return NULL;
-	}
-
-
-	// support only non-extended PCM for now
-	buffer += word;
-	const int32_t fmt_ck_size = *buffer;
-	if (fmt_ck_size != 16) {
-		invalid_wav_file(file_buffer, new_samp, path);
-		return NULL;
-	}
-
-
-	/* parse 'fmt ' chunk */
-	// check PCM format and number of channels
-	buffer += word;
-	if ((*(int32_t *) buffer & 0xFFFF) != 1) {
-		invalid_wav_file(file_buffer, new_samp, path);
-		return NULL;
-	}
-
-	const int num_channels = *(int32_t *) buffer >> 16;
-	if (num_channels != 1 && num_channels != 2) {
-		fprintf(stderr, "%d channel(s) not supported\n", num_channels);
-		invalid_wav_file(file_buffer, new_samp, path);
-		return NULL;
-	}
-
-	buffer += word;
-	const int sample_rate = *(int32_t *) buffer;
-
-	buffer += 2 * word;
-	const int frame_size = *(int32_t *) buffer & 0xFFFF;
-	const int bit_depth = *(int32_t *) buffer >> 16;
-	if (bit_depth != 16)
-		fprintf(stderr, "Warning bitdepth is %d\n", bit_depth);
-
-	// TODO if extended format (fmt_ck_size > 16) then more data needs to be read
-
-	/* parse data chunk */
-	// seek to 'data' chunk
-	buffer += word;
-	while (*(int32_t *) buffer ^ 0x61746164) { 		
-		// find current chunk size and seek to next chunk
-		// bounds checking is performed in case 'data' chunk is never found
-		buffer += word;
-		if (buffer + word > end_ptr) {
-			invalid_wav_file(file_buffer, new_samp, path);
-			return NULL;
-		}
-
-		const int s = *(int32_t *) buffer;
-		buffer += word + s;
-		if (buffer + word > end_ptr) {
-			invalid_wav_file(file_buffer, new_samp, path);
-			return NULL;
-		}
-
-	}
-
-	buffer += word;
-	const int32_t data_size = *(int32_t *) buffer;
-	const int32_t num_frames = data_size / frame_size;
-
-	/* register sample info and pcm data */
-	// register some fields
-	new_samp->frame_size = frame_size;
-	new_samp->num_frames = num_frames;
-	new_samp->end_frame = num_frames;
-	new_samp->rate = sample_rate;
-
-	// allocate sample memory
-	new_samp->data = malloc(num_frames * NUM_CHANNELS * sizeof(double));
-	if (!new_samp->data) {
-		fprintf(stderr, "Sample memory allocation error\n");
-		platform_free_file_buffer(&file_buffer);
-		free(new_samp);
-		return NULL;
-	}
-
-	// convert samples from int to double and mono to stereo if necassary
-	// then store data in s->data
-	buffer += word;
-	for (int i = 0; i < num_frames; i++) {
-		double l;
-		double r;
-		// left = right if data is mono
-		if (num_channels == 1)
-		{
-			l = ((double) ((int16_t *) buffer)[i]) / 32768.0;
-			r = l;
-		} else {
-			l = ((double) ((int16_t *) buffer)[NUM_CHANNELS * i]) / 32768.0;
-
-			r = ((double) ((int16_t *) buffer)[NUM_CHANNELS * i + 1]) / 32768.0;
-		}
-		// bounds checking
-		if (l > 1.0) l = 1.0;
-		else if (l < -1.0) l = -1.0;
-		if (r > 1.0) r = 1.0;
-		else if (r < -1.0) r = -1.0;
-
-		new_samp->data[NUM_CHANNELS * i] = l;
-		new_samp->data[NUM_CHANNELS * i + 1] = r;
-	}
-
-	// resample to SAMPLE_RATE constant if necessary
-	if (new_samp->rate != SAMPLE_RATE) {
-		const int r = resample(new_samp, new_samp->rate, SAMPLE_RATE);
-		if (r == -1) {
-			fprintf(stderr, "Resampling Error\n");
-			platform_free_file_buffer(&file_buffer);
-			free(new_samp);
-			free(new_samp->data);
-			return NULL;
-		}
-		new_samp->num_frames = r;
-		new_samp->end_frame = r;
-		new_samp->rate = SAMPLE_RATE;
-	}
-
-	// clean up
-	platform_free_file_buffer(&file_buffer);
-	print_sample(new_samp);
-	return new_samp;
-}
-
-static int load_directory_to_browser(struct file_browser *fb, const char *working_dir)
-{
-	fb->working_dir = realloc(fb->working_dir, sizeof(char) * (strlen(working_dir) + 1));
-	if (!fb->working_dir) {
-		fprintf(stderr, "Error allocating file browser memory\n");
-		return -1;
-	}
-	strcpy(fb->working_dir, working_dir);
-
-	SP_DIR *dir = platform_opendir(fb->working_dir);
-	if(dir) {
-		fb->selected_file = 0;
-		fb->num_files = platform_num_valid_items_in_dir(dir);
-		fb->files = realloc(fb->files, sizeof(struct file_item) * fb->num_files);
-		if (!fb->files) {
-			fprintf(stderr, "Error allocating file browser memory\n");
-			fb->num_files = 0;
-			free(fb->working_dir);
-			return -1;
-		}
-
-		for (int i = 0; i < fb->num_files; i++) {
-			if (platform_read_next_valid_item(dir, &fb->files[i].name, &fb->files[i].is_dir))
-				break;
-		}
-
-		if (platform_closedir(dir)) {
-			fprintf(stderr, "Error closing directory\n");
-		}
-	} else {
-		fprintf(stderr, "Error opening directory: %s", fb->working_dir);
-		return -1;
-	}
-}
-
-// TODO currently routes all audio to master
-static inline void load_sample_from_browser(struct sp_state *sp_state, int pad)
-{
-	struct file_browser *fb = &sp_state->file_browser;
-	struct sampler *sampler = &(sp_state->sampler);
-
-	const char *file = fb->files[fb->selected_file].name;
-	const char *dir = fb->working_dir;
-
-	char *path = malloc(sizeof(char) * (strlen(file) + strlen(dir) + 1));
-	if (!path) {
-		fprintf(stderr, "Error loading file\n");
-		return;
-	}
-	strcpy(path, dir);
-	strcat(path, file);
-
-	struct sample *new_samp = load_sample_from_wav(path);
-	free(path);
-
-	if (new_samp) {
-		struct sample **dest_pad = sampler->banks[sampler->curr_bank] + pad;
-
-		// if target pad is occupied delete that sample
-		if (*dest_pad) {
-			// remove sample ptr from master bus
-			// TODO will need to generalize to aux busses later
-			for (int i = 0; i < sp_state->master.num_sample_ins; i++) {
-				if (sp_state->master.sample_ins[i] == *dest_pad) {
-					sp_state->master.sample_ins[i] = sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1];
-					sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * --(sp_state->master.num_sample_ins));
-					break;
-				}
-			}
-
-			// free sample
-			if ((*dest_pad)->path) free((*dest_pad)->path);
-			if ((*dest_pad)->data) free((*dest_pad)->data);
-			free(*dest_pad);
-
-		} 
-
-		// assign new sample to pad
-		*dest_pad = new_samp;
-		sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * ++(sp_state->master.num_sample_ins));
-		sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1] = new_samp;
-
-		sp_state->sampler.active_sample = new_samp;
-		sp_state->sampler.curr_pad = pad;
-
-	}
-	fb->loading_to_pad = 0;
-}
-
-static void update_file_browser(struct sp_state *sp_state, struct key_input *input)
-{
-	struct file_browser *fb = &sp_state->file_browser;
-	const char alt = is_key_down(input, KEY_SHIFT_L) || is_key_down(input, KEY_SHIFT_R); 
-
-	// If in file load process then poll for pad destination
-	// This code modifies sampler state to switch banks and choose a pad
-	// rather than doing some complicated mode switching
-	if (fb->loading_to_pad) {
-		struct sampler *sampler = &(sp_state->sampler);
-
-		// switch bank
-		if (is_key_pressed(input, KEY_B)) {
-			if (!alt && sampler->curr_bank + 1 < sampler->num_banks)
-				sampler->curr_bank += 1;
-			else if (sampler->curr_bank > 0 ) 
-				sampler->curr_bank -= 1;
-		}
-
-		// if a pad is pressed try and load sample
-		if (is_key_pressed(input, KEY_Q)) load_sample_from_browser(sp_state, PAD_Q);
-		else if (is_key_pressed(input, KEY_W)) load_sample_from_browser(sp_state, PAD_W);
-		else if (is_key_pressed(input, KEY_E)) load_sample_from_browser(sp_state, PAD_E);
-		else if (is_key_pressed(input, KEY_R)) load_sample_from_browser(sp_state, PAD_R);
-		else if (is_key_pressed(input, KEY_A)) load_sample_from_browser(sp_state, PAD_A);
-		else if (is_key_pressed(input, KEY_S)) load_sample_from_browser(sp_state, PAD_S);
-		else if (is_key_pressed(input, KEY_D)) load_sample_from_browser(sp_state, PAD_D);
-		else if (is_key_pressed(input, KEY_F)) load_sample_from_browser(sp_state, PAD_F);
-
-	} else {
-
-		// scroll down through file list
-		if (input->num_key_press[KEY_DOWN]) {
-			if(++(fb->selected_file) >= fb->num_files) {
-				fb->selected_file -= fb->num_files;
-			}
-			printf("%s\n", fb->files[fb->selected_file].name);
-		}
-
-		// scroll up through file list
-		if (input->num_key_press[KEY_UP]) {
-			if(--(fb->selected_file) < 0) {
-				fb->selected_file += fb->num_files;
-			}
-			printf("%s\n", fb->files[fb->selected_file].name);
-		}
-
-		// load wav or enter directory
-		if (is_key_pressed(input, KEY_RIGHT)) {
-
-			if (fb->files[fb->selected_file].is_dir) {
-				// if selected file is a directory
-
-				// +2 to make space for null-terminating char and '/' after directory name
-				int dir_len = strlen(fb->working_dir) + strlen(fb->files[fb->selected_file].name) + 2;
-				char *dir = malloc(sizeof(char) * dir_len);
-
-				if (dir) {
-					// assemble working_dir string
-					strcpy(dir, fb->working_dir);
-					strcat(dir, fb->files[fb->selected_file].name);
-					strcat(dir, "/");
-					load_directory_to_browser(fb, dir);
-					free(dir);
-				}
-			} else {
-				// otherwise attempt to load wav file
-				fb->loading_to_pad = 1;
-			}
-		}
-	}
-
-}
-
-
 /////////////////////////////////////////////////////////////////////////////////////////
 /// Sampler Update
 
@@ -783,4 +328,465 @@ static void update_sampler(struct sp_state *sp_state, struct key_input *input)
 		if (s->loop_mode == PING_PONG) s->loop_mode = LOOP_OFF;
 		else s->loop_mode += 1;
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+/// File Browser Update
+
+// change sample's sample rate from rate_in to rate_out
+static int resample(struct sample* s, int rate_in, int rate_out)
+{
+	double bandwidth = 0.95;  // bandwidth
+	double rp = 0.1; // passband ripple factor
+	double rs = 140; // stopband attenuation
+	double tol = 0.000001; // tolerance
+
+	// initialize smarc filter
+	struct PFilter* pfilt = smarc_init_pfilter(rate_in, rate_out, 
+			bandwidth, rp, rs, tol, NULL, 0);
+	if (!pfilt)
+		return -1;
+
+	struct PState* pstate[NUM_CHANNELS];
+	pstate[0] = smarc_init_pstate(pfilt);
+	pstate[1] = smarc_init_pstate(pfilt);
+
+	const int OUT_SIZE = 
+		(int) smarc_get_output_buffer_size(pfilt, s->num_frames);
+	double* outbuf = malloc(OUT_SIZE * sizeof(double));
+	double* left_inbuf = malloc(s->num_frames * sizeof(double));
+	double* right_inbuf = malloc(s->num_frames * sizeof(double));
+
+	if (!outbuf || !left_inbuf || !right_inbuf) {
+		fprintf(stderr, "Error allocating memory for resampling\n");
+		exit(1);
+	}
+
+	// extract left and right channels
+	for (int i = 0; i < s->num_frames; i++) {
+		left_inbuf[i] = s->data[i * NUM_CHANNELS];
+		right_inbuf[i] = s->data[i * NUM_CHANNELS + 1];
+	}
+	s->data = realloc(s->data, sizeof(double) * OUT_SIZE * NUM_CHANNELS);
+	if (!s->data)
+		return -1;
+
+	// resample left channel
+	int w = smarc_resample( pfilt, pstate[0], left_inbuf, 
+			s->num_frames, outbuf, OUT_SIZE);
+	for (int i = 0; i < w; i++)
+		s->data[i * NUM_CHANNELS] = outbuf[i];
+
+	// resample right channel
+	w = smarc_resample( pfilt, pstate[1], right_inbuf, 
+			s->num_frames, outbuf, OUT_SIZE);
+	for (int i = 0; i < w; i++)
+		s->data[i * NUM_CHANNELS + 1] = outbuf[i];
+
+	smarc_destroy_pstate(pstate[0]);
+	smarc_destroy_pstate(pstate[1]);
+	free(left_inbuf);
+	free(right_inbuf);
+	free(outbuf);
+	return w;
+}
+
+// used for debugging
+// TODO: delete and replace with logging
+static void print_sample(const struct sample* s)
+{
+	printf(
+			"***********************\n"
+			"Sample Info:\n"
+			"-----------------------\n"
+			"Frame size: %dB\n"
+			"Sample Rate: %dHz\n"
+			"Num Frames: %d\n"
+			"***********************\n",
+			s->frame_size,
+			s->rate,
+			s->num_frames);
+}
+
+// check endianess of system at runtime
+static bool is_little_endian(void)
+{
+	int n = 1;
+	if(*(char *)&n == 1) 
+		return true;
+	return false;
+}
+
+static inline void invalid_wav_file(void *buffer, struct sample *s, const char *path) 
+{
+	fprintf(stderr, "Unsupported file: %s\n", path);
+	platform_free_file_buffer(&buffer);
+	free(s);
+}
+
+// loads sample from a buffer in wav format
+// currently supports only non compressed WAV files
+// sample should be initialized before being passed to load_wav()
+// returns 0 iff success
+static struct sample *load_sample_from_wav(const char *path)
+{
+	// TODO support big_endian systems as well
+	if (!is_little_endian) {
+		fprintf(stderr, "Only little-endian systems are supported\n");
+		return NULL;
+	}
+
+	// load file
+	void *file_buffer = NULL;
+	long buf_bytes = platform_load_entire_file(&file_buffer, path);
+	if (!buf_bytes) {
+		fprintf(stderr, "Failed to open: %s\n", path);
+		return NULL;
+	}
+	char *buffer = (char *) file_buffer;
+
+
+	// init sample
+	struct sample *new_samp = calloc(1, sizeof(struct sample));
+	if (!new_samp) {
+		fprintf(stderr, "Error allocating sample");
+		platform_free_file_buffer(file_buffer);
+	}
+
+	new_samp->speed = 1.0;	
+	new_samp->path = malloc(sizeof(char) * (strlen(path) + 1));
+	if (new_samp->path) strcpy(new_samp->path, path);
+
+
+	// any read should not read the end_ptr or anything past it
+	// data is stored in 4 byte words
+	const char *end_ptr = buffer + buf_bytes;
+	const int word = 4;
+
+	/* parse headers */
+	// check for 'RIFF' tag bytes [0, 3]
+	if (*(int32_t *) buffer ^ 0x46464952) {
+		invalid_wav_file(file_buffer, new_samp, path);
+		return NULL;
+	}
+
+	// get master chunk_size 
+	buffer += word;
+	const int64_t mstr_ck_size = *(int32_t *) buffer;
+	// verify we won't access data outside buffer
+	// TODO more bounds checking should be added in case wav file is not properly formatted
+	if (buffer + word + mstr_ck_size > end_ptr) {
+		invalid_wav_file(file_buffer, new_samp, path);
+		return NULL;
+	}
+
+
+	// check for 'WAVE' tag
+	// TODO spec does not require wave tag here
+	buffer += word;
+	if (*(int32_t *) buffer ^ 0x45564157) {
+		invalid_wav_file(file_buffer, new_samp, path);
+		return NULL;
+	}
+
+
+	// check for 'fmt ' tag
+	buffer += word;
+	if (*(int32_t *) buffer ^ 0x20746D66) {
+		invalid_wav_file(file_buffer, new_samp, path);
+		return NULL;
+	}
+
+
+	// support only non-extended PCM for now
+	buffer += word;
+	const int32_t fmt_ck_size = *buffer;
+	if (fmt_ck_size != 16) {
+		invalid_wav_file(file_buffer, new_samp, path);
+		return NULL;
+	}
+
+
+	/* parse 'fmt ' chunk */
+	// check PCM format and number of channels
+	buffer += word;
+	if ((*(int32_t *) buffer & 0xFFFF) != 1) {
+		invalid_wav_file(file_buffer, new_samp, path);
+		return NULL;
+	}
+
+	const int num_channels = *(int32_t *) buffer >> 16;
+	if (num_channels != 1 && num_channels != 2) {
+		fprintf(stderr, "%d channel(s) not supported\n", num_channels);
+		invalid_wav_file(file_buffer, new_samp, path);
+		return NULL;
+	}
+
+	buffer += word;
+	const int sample_rate = *(int32_t *) buffer;
+
+	buffer += 2 * word;
+	const int frame_size = *(int32_t *) buffer & 0xFFFF;
+	const int bit_depth = *(int32_t *) buffer >> 16;
+	if (bit_depth != 16)
+		fprintf(stderr, "Warning bitdepth is %d\n", bit_depth);
+
+	// TODO if extended format (fmt_ck_size > 16) then more data needs to be read
+
+	/* parse data chunk */
+	// seek to 'data' chunk
+	buffer += word;
+	while (*(int32_t *) buffer ^ 0x61746164) { 		
+		// find current chunk size and seek to next chunk
+		// bounds checking is performed in case 'data' chunk is never found
+		buffer += word;
+		if (buffer + word > end_ptr) {
+			invalid_wav_file(file_buffer, new_samp, path);
+			return NULL;
+		}
+
+		const int s = *(int32_t *) buffer;
+		buffer += word + s;
+		if (buffer + word > end_ptr) {
+			invalid_wav_file(file_buffer, new_samp, path);
+			return NULL;
+		}
+
+	}
+
+	buffer += word;
+	const int32_t data_size = *(int32_t *) buffer;
+	const int32_t num_frames = data_size / frame_size;
+
+	/* register sample info and pcm data */
+	// register some fields
+	new_samp->frame_size = frame_size;
+	new_samp->num_frames = num_frames;
+	new_samp->end_frame = num_frames;
+	new_samp->rate = sample_rate;
+
+	// allocate sample memory
+	new_samp->data = malloc(num_frames * NUM_CHANNELS * sizeof(double));
+	if (!new_samp->data) {
+		fprintf(stderr, "Sample memory allocation error\n");
+		platform_free_file_buffer(&file_buffer);
+		free(new_samp);
+		return NULL;
+	}
+
+	// convert samples from int to double and mono to stereo if necassary
+	// then store data in s->data
+	buffer += word;
+	for (int i = 0; i < num_frames; i++) {
+		double l;
+		double r;
+		// left = right if data is mono
+		if (num_channels == 1)
+		{
+			l = ((double) ((int16_t *) buffer)[i]) / 32768.0;
+			r = l;
+		} else {
+			l = ((double) ((int16_t *) buffer)[NUM_CHANNELS * i]) / 32768.0;
+
+			r = ((double) ((int16_t *) buffer)[NUM_CHANNELS * i + 1]) / 32768.0;
+		}
+		// bounds checking
+		if (l > 1.0) l = 1.0;
+		else if (l < -1.0) l = -1.0;
+		if (r > 1.0) r = 1.0;
+		else if (r < -1.0) r = -1.0;
+
+		new_samp->data[NUM_CHANNELS * i] = l;
+		new_samp->data[NUM_CHANNELS * i + 1] = r;
+	}
+
+	// resample to SAMPLE_RATE constant if necessary
+	if (new_samp->rate != SAMPLE_RATE) {
+		const int r = resample(new_samp, new_samp->rate, SAMPLE_RATE);
+		if (r == -1) {
+			fprintf(stderr, "Resampling Error\n");
+			platform_free_file_buffer(&file_buffer);
+			free(new_samp);
+			free(new_samp->data);
+			return NULL;
+		}
+		new_samp->num_frames = r;
+		new_samp->end_frame = r;
+		new_samp->rate = SAMPLE_RATE;
+	}
+
+	// clean up
+	platform_free_file_buffer(&file_buffer);
+	print_sample(new_samp);
+	return new_samp;
+}
+
+static int load_directory_to_browser(struct file_browser *fb, const char *dir)
+{
+	if (fb->dir) free(fb->dir);
+
+	// TODO See about removing the need for this check eventually
+	fb->dir = platform_get_realpath(dir);
+	if (!fb->dir) {
+		fprintf(stderr, "Error allocating file browser memory\n");
+		return -1;
+	}
+
+	SP_DIR *dir_handle = platform_opendir(fb->dir);
+	if(dir) {
+		fb->selected_file = 0;
+		fb->num_files = platform_num_valid_items_in_dir(dir_handle);
+		fb->files = realloc(fb->files, sizeof(struct file_item) * fb->num_files);
+		if (fb->num_files && !fb->files) {
+			fprintf(stderr, "Error allocating file browser memory\n");
+			fb->num_files = 0;
+			free(fb->dir);
+			return -1;
+		}
+
+		for (int i = 0; i < fb->num_files; i++) {
+			if (platform_read_next_valid_item(dir_handle, &fb->files[i].name, &fb->files[i].is_dir))
+				break;
+		}
+
+		if (platform_closedir(dir_handle)) {
+			fprintf(stderr, "Error closing directory\n");
+		}
+	} else {
+		fprintf(stderr, "Error opening directory: %s", fb->dir);
+		return -1;
+	}
+}
+
+// TODO currently routes all audio to master
+static inline void load_sample_from_browser(struct sp_state *sp_state, int pad)
+{
+	struct file_browser *fb = &sp_state->file_browser;
+	struct sampler *sampler = &(sp_state->sampler);
+
+	const char *file = fb->files[fb->selected_file].name;
+	const char *dir = fb->dir;
+
+	// +2 to add '/' charactor and null temination character
+	char *path = malloc(sizeof(char) * (strlen(file) + strlen(dir) + 2));
+	if (!path) {
+		fprintf(stderr, "Error loading file\n");
+		return;
+	}
+	strcpy(path, dir);
+	strcat(path, "/");
+	strcat(path, file);
+
+	struct sample *new_samp = load_sample_from_wav(path);
+	free(path);
+
+	if (new_samp) {
+		struct sample **dest_pad = sampler->banks[sampler->curr_bank] + pad;
+
+		// if target pad is occupied delete that sample
+		if (*dest_pad) {
+			// remove sample ptr from master bus
+			// TODO will need to generalize to aux busses later
+			for (int i = 0; i < sp_state->master.num_sample_ins; i++) {
+				if (sp_state->master.sample_ins[i] == *dest_pad) {
+					sp_state->master.sample_ins[i] = sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1];
+					sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * --(sp_state->master.num_sample_ins));
+					break;
+				}
+			}
+
+			// free sample
+			if ((*dest_pad)->path) free((*dest_pad)->path);
+			if ((*dest_pad)->data) free((*dest_pad)->data);
+			free(*dest_pad);
+
+		} 
+
+		// assign new sample to pad
+		*dest_pad = new_samp;
+		sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * ++(sp_state->master.num_sample_ins));
+		sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1] = new_samp;
+
+		sp_state->sampler.active_sample = new_samp;
+		sp_state->sampler.curr_pad = pad;
+
+	}
+	fb->loading_to_pad = 0;
+}
+
+static void update_file_browser(struct sp_state *sp_state, struct key_input *input)
+{
+	struct file_browser *fb = &sp_state->file_browser;
+	const char alt = is_key_down(input, KEY_SHIFT_L) || is_key_down(input, KEY_SHIFT_R); 
+
+	// If in file load process then poll for pad destination
+	// This code modifies sampler state to switch banks and choose a pad
+	// rather than doing some complicated mode switching
+	if (fb->loading_to_pad) {
+		struct sampler *sampler = &(sp_state->sampler);
+
+		// switch bank
+		if (is_key_pressed(input, KEY_B)) {
+			if (!alt && sampler->curr_bank + 1 < sampler->num_banks)
+				sampler->curr_bank += 1;
+			else if (sampler->curr_bank > 0 ) 
+				sampler->curr_bank -= 1;
+		}
+
+		// if a pad is pressed try and load sample
+		if (is_key_pressed(input, KEY_Q)) load_sample_from_browser(sp_state, PAD_Q);
+		else if (is_key_pressed(input, KEY_W)) load_sample_from_browser(sp_state, PAD_W);
+		else if (is_key_pressed(input, KEY_E)) load_sample_from_browser(sp_state, PAD_E);
+		else if (is_key_pressed(input, KEY_R)) load_sample_from_browser(sp_state, PAD_R);
+		else if (is_key_pressed(input, KEY_A)) load_sample_from_browser(sp_state, PAD_A);
+		else if (is_key_pressed(input, KEY_S)) load_sample_from_browser(sp_state, PAD_S);
+		else if (is_key_pressed(input, KEY_D)) load_sample_from_browser(sp_state, PAD_D);
+		else if (is_key_pressed(input, KEY_F)) load_sample_from_browser(sp_state, PAD_F);
+		
+		else if (is_key_pressed(input, KEY_ESCAPE)) fb->loading_to_pad = 0;
+
+	} else {
+
+		// scroll down through file list
+		if (input->num_key_press[KEY_DOWN]) {
+			if (fb->selected_file < fb->num_files - 1) fb->selected_file++;
+		}
+
+		// scroll up through file list
+		if (input->num_key_press[KEY_UP]) {
+			if (fb->selected_file > 0) fb->selected_file--;
+		}
+
+		// load wav or enter directory
+		if (is_key_pressed(input, KEY_RIGHT) && fb->num_files) {
+
+			if (fb->files[fb->selected_file].is_dir) {
+				// if selected file is a directory
+
+				// +2 to make space for null-terminating char and '/' after directory name
+				int dir_len = strlen(fb->dir) + strlen(fb->files[fb->selected_file].name) + 2;
+				char *dir = malloc(sizeof(char) * dir_len);
+
+				if (dir) {
+					// assemble dir string
+					strcpy(dir, fb->dir);
+					strcat(dir, "/");
+					strcat(dir, fb->files[fb->selected_file].name);
+					load_directory_to_browser(fb, dir);
+					free(dir);
+				}
+			} else {
+				// otherwise attempt to load wav file
+				fb->loading_to_pad = 1;
+			}
+		}
+
+		// back out to parent directory
+		if (is_key_pressed(input, KEY_LEFT)) {
+			char *parent_dir = platform_get_parent_dir(fb->dir);
+			load_directory_to_browser(fb, parent_dir);
+			free(parent_dir);
+		}
+	}
+
 }
