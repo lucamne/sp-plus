@@ -9,6 +9,8 @@ PROGRAM STUFF
 ------------------------------------------
 Implement a command interface for settings and maybe reading a config
 
+Support loading mp3
+
 SAMPLER
 ----------------------------------
 Sample Pad manipulation

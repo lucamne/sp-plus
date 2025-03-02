@@ -13,8 +13,7 @@
 #include <stdlib.h>
 
 // paths for testing
-#define WAV1 "../wavs/GREEN.wav"
-#define WAV2 "../wavs/GREEN.wav"
+#define WAV1 "../wavs/BillieJean.wav"
 #define FONT1 "../fonts/DejaVuSans-Bold.ttf"
 #define WORKING_DIR "../wavs/"
 

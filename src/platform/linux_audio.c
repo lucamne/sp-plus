@@ -171,7 +171,7 @@ static int xrun_recovery(snd_pcm_t* pcm, int err)
 // container to be passed to callback on receiving signal from pcm device
 struct async_private_data {
 	snd_pcm_uframes_t period_size;
-	struct sp_state *sp_state;
+	void *sp_state;
 };
 
 
@@ -276,7 +276,7 @@ static void async_callback(snd_async_handler_t *ahandler)
 // initialize async callback and prep pcm buffer with frames
 static int async_init(
 		snd_pcm_t *handle, 
-		struct sp_state *sp_state,
+		void *sp_state,
 		snd_pcm_uframes_t period_size)
 {
 	// maybe need to free later
@@ -351,25 +351,40 @@ static int async_init(
 	return 0;
 }
 
-// create open a pcm device and initialize parameters
-snd_pcm_t *start_alsa(struct sp_state *sp_state) 
+// open a pcm device and initialize parameters
+snd_pcm_t *init_alsa(void) 
 {
 	int err;
-	snd_pcm_uframes_t buffer_size, period_size;
 	// TODO make device configurable
 	const char* dev_id = "plughw:1,0";
 	snd_pcm_t *pcm;
-
-	snd_pcm_hw_params_t* hwparams;
-	snd_pcm_sw_params_t* swparams;
-	snd_pcm_hw_params_alloca(&hwparams);
-	snd_pcm_sw_params_alloca(&swparams);
 
 	err = snd_pcm_open(&pcm, dev_id, SND_PCM_STREAM_PLAYBACK, 0);
 	if (err < 0) {
 		fprintf(stderr, "Error opening PCM device: %s\n", snd_strerror(err));
 		return NULL;
 	}
+	
+	return pcm;
+}
+
+struct start_alsa_args {
+	void *sp_state;
+	snd_pcm_t *pcm;
+};
+	
+static void *start_alsa(struct start_alsa_args *args)
+{
+	void *sp_state = args->sp_state;
+	snd_pcm_t *pcm = args->pcm;
+
+	int err;
+	snd_pcm_uframes_t buffer_size, period_size;
+
+	snd_pcm_hw_params_t* hwparams;
+	snd_pcm_sw_params_t* swparams;
+	snd_pcm_hw_params_alloca(&hwparams);
+	snd_pcm_sw_params_alloca(&swparams);
 
 	err = set_hwparams(pcm, &buffer_size, &period_size, hwparams);
 	if (err < 0) {
@@ -391,8 +406,11 @@ snd_pcm_t *start_alsa(struct sp_state *sp_state)
 	err = async_init(pcm, sp_state, period_size);
 
 	if (err < 0) {
-		printf("Playback failed: %s\n", snd_strerror(err));
 		return NULL;
 	}
-	return pcm;
+
+	while(1) {
+		sleep(1);
+	}
+	return NULL;
 }

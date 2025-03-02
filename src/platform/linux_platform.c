@@ -6,6 +6,8 @@
 #include <dirent.h>
 #include <errno.h>
 #include <sys/stat.h>
+// TODO create thread abstraction for program?
+#include <pthread.h>
 
 #include "linux_audio.c"
 
@@ -306,7 +308,7 @@ int main (int argc, char **argv)
 
 	// start audio callback
 	// audio callback uses fill_audio_buffer declared in sp_plus.h
-	snd_pcm_t *pcm = start_alsa(sp_state);
+	snd_pcm_t *pcm = init_alsa();
 	if (!pcm) {
 		fprintf(stderr, "Error starting audio\n");
 		// TODO: Devide what to did if audio is not started
@@ -315,7 +317,26 @@ int main (int argc, char **argv)
 		//exit(1);
 	}
 
+	// Start audio thread
+	// TODO may want to abstract if using threads for rest of program
+	// TODO understand attributes later
+	// TODO figure out how to cast properly
 
+
+	pthread_t audio_thread;
+	struct start_alsa_args audio_thread_args = {sp_state, pcm};
+	if (pthread_create(&audio_thread, NULL,  (void * (*)(void *)) start_alsa, &audio_thread_args)) {
+		fprintf(stderr, "Error starting audio thread\n");
+	}
+
+	/*
+	if (start_alsa(sp_state, pcm)) {
+		fprintf(stderr, "Error starting audio\n");
+		// TODO: Devide what to did if audio is not started
+		// always exiting is annoying for debuggin
+
+		//exit(1);
+	}*/
 
 	// Setup X client
 	struct x_window_data x_data = {0};
@@ -328,27 +349,27 @@ int main (int argc, char **argv)
 
 	// maximize screen
 	/*
-	Atom wm_state = XInternAtom(x_data.display, "_NET_WM_STATE", 0);
-	Atom max_h = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
-	Atom max_v = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
+	   Atom wm_state = XInternAtom(x_data.display, "_NET_WM_STATE", 0);
+	   Atom max_h = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_HORZ", 0);
+	   Atom max_v = XInternAtom(x_data.display, "_NET_WM_STATE_MAXIMIZED_VERT", 0);
 
-	if (wm_state == None) {
-		fprintf(stderr, "failed to maximize window\n");
-	} else {
-		XClientMessageEvent ev = {0};
-		ev.type = ClientMessage;
-		ev.format = 32;
-		ev.window = x_data.window;
-		ev.message_type = wm_state;
-		ev.data.l[0] = 2;
-		ev.data.l[1] = max_h;
-		ev.data.l[2] = max_v;
-		ev.data.l[3] = 1;
+	   if (wm_state == None) {
+	   fprintf(stderr, "failed to maximize window\n");
+	   } else {
+	   XClientMessageEvent ev = {0};
+	   ev.type = ClientMessage;
+	   ev.format = 32;
+	   ev.window = x_data.window;
+	   ev.message_type = wm_state;
+	   ev.data.l[0] = 2;
+	   ev.data.l[1] = max_h;
+	   ev.data.l[2] = max_v;
+	   ev.data.l[3] = 1;
 
-		XSendEvent(	x_data.display, DefaultRootWindow(x_data.display), 
-				0, SubstructureNotifyMask, (XEvent *) &ev);
-	}
-	*/
+	   XSendEvent(	x_data.display, DefaultRootWindow(x_data.display), 
+	   0, SubstructureNotifyMask, (XEvent *) &ev);
+	   }
+	   */
 
 	/* main update and render loop */
 
@@ -424,15 +445,15 @@ int main (int argc, char **argv)
 					} break;
 
 					/*
-				case ConfigureNotify:
-					{
-						XConfigureEvent *e = (XConfigureEvent *) &ev;
-						x_data.width = e->width;
-						x_data.height = e->height;
-						size_change = 1;
-					} break;
+					   case ConfigureNotify:
+					   {
+					   XConfigureEvent *e = (XConfigureEvent *) &ev;
+					   x_data.width = e->width;
+					   x_data.height = e->height;
+					   size_change = 1;
+					   } break;
 
-				*/
+*/
 				case KeyPress:
 					// counts num key presses, does NOT confirm key is down
 					{
@@ -447,19 +468,19 @@ int main (int argc, char **argv)
 		// handle window size changes
 		// if window size changes reallocate pixel_buf
 		/*
-		if (size_change) {
-			size_change = 0;
-			XDestroyImage(x_data.x_window_buffer);
-			x_data.pixel_buf_size = x_data.width * x_data.height * x_data.pixel_bytes;
-			x_data.pixel_buf = malloc(x_data.pixel_buf_size);
+		   if (size_change) {
+		   size_change = 0;
+		   XDestroyImage(x_data.x_window_buffer);
+		   x_data.pixel_buf_size = x_data.width * x_data.height * x_data.pixel_bytes;
+		   x_data.pixel_buf = malloc(x_data.pixel_buf_size);
 
-			x_data.x_window_buffer = XCreateImage(
-					x_data.display, x_data.visinfo.visual, 
-					x_data.visinfo.depth, ZPixmap, 0, 
-					x_data.pixel_buf, x_data.width, x_data.height, 
-					x_data.pixel_bytes * 8, 0);
-		}
-		*/
+		   x_data.x_window_buffer = XCreateImage(
+		   x_data.display, x_data.visinfo.visual, 
+		   x_data.visinfo.depth, ZPixmap, 0, 
+		   x_data.pixel_buf, x_data.width, x_data.height, 
+		   x_data.pixel_bytes * 8, 0);
+		   }
+		   */
 
 		// call to sp_plus update and render service
 		sp_plus_update_and_render(
@@ -628,7 +649,7 @@ char *platform_get_parent_dir(const char *dir)
 
 	strcpy(par_dir, dir);
 	strcat(par_dir, "/..");
-	
+
 	char *out = realpath(par_dir, NULL);
 	free(par_dir);
 	return out;
