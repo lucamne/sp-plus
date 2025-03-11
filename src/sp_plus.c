@@ -157,6 +157,8 @@ static void process_leaf_nodes(double out[], struct bus* b)
 // relies on other audio playback functions
 int sp_plus_fill_audio_buffer(void *sp_state, void* buffer, int frames)
 {
+	ASSERT(!platform_mutex_lock(((struct sp_state *) sp_state)->master_mutex));
+
 	struct bus master = ((struct sp_state *) sp_state)->master;
 	static double out[NUM_CHANNELS] = {0, 0};
 	// process i frames
@@ -179,7 +181,8 @@ int sp_plus_fill_audio_buffer(void *sp_state, void* buffer, int frames)
 
 		memcpy((char *)buffer + i * sizeof(int_out), int_out, sizeof(int_out));
 	}
-	return 0;
+
+	ASSERT(!platform_mutex_unlock(((struct sp_state *) sp_state)->master_mutex));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -194,6 +197,13 @@ void *sp_plus_allocate_state(void)
 {
 	struct sp_state *s = calloc(1, sizeof(struct sp_state));
 	if (!s) return NULL;
+
+	s->master_mutex = platform_init_mutex();
+	if (!s->master_mutex) {
+		fprintf(stderr, "Error allocating state memory\n");
+		exit(1);
+	}
+
 
 	// initialize a sample bank with 8 samples
 	s->sampler.zoom = 1;

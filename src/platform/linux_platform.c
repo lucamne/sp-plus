@@ -654,3 +654,22 @@ char *platform_get_parent_dir(const char *dir)
 	free(par_dir);
 	return out;
 }
+
+/* Threading */
+void *platform_init_mutex(void)
+{
+	pthread_mutex_t *m = malloc(sizeof(pthread_mutex_t));
+	if (m) pthread_mutex_init(m, NULL);
+
+	return (void *) m;
+}
+
+int platform_mutex_lock(void *mutex)
+{
+	return pthread_mutex_lock((pthread_mutex_t *) mutex);
+}
+
+int platform_mutex_unlock(void *mutex)
+{
+	return pthread_mutex_unlock((pthread_mutex_t *) mutex);
+}

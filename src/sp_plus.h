@@ -95,4 +95,18 @@ char *platform_get_realpath(const char * dir);
 char *platform_get_parent_dir(const char *dir);
 // returns parent dir or NULL on error
 
+/* threading */
+void *platform_init_mutex(void);
+// allocates an initialized mutex or returns NULL on failure
+
+int platform_mutex_lock(void *mutex);
+// locks mutex
+// if mutex is already locked by another thread 
+// suspend thread until unlocked then lock
+// returns 0 on success and non 0 on failure
+
+int platform_mutex_unlock(void *mutex);
+// unlock mutex locked by calling thread
+// returns 0 on success and non 0 on failure
+
 #endif

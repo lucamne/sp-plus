@@ -23,10 +23,12 @@ Sample init process may need improvements
 
 File Browser
 -----------------------------------------
-Create UI
+dialog box for loading samples
 
 Enter working directory
 	Requires getting text input
+
+Maybe cancel file load on tab
 
 Load folder into sampler
 Pass a filter_file function to platform

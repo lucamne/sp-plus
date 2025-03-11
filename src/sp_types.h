@@ -43,13 +43,15 @@ struct sampler {
 
 // TODO will change when more mixer code is written
 // Used to route and mix audio data
-// In practice busses will only have one output
+// busses will have one output allowing mixer to be represented as a tree
 struct bus {
 	struct sample** sample_ins;	// sample inputs
 	int num_sample_ins;
 
 	struct bus** bus_ins;		// bus inputs
 	int num_bus_ins;
+
+	struct bus *output_bus;		// output bus, used for mixer tree manipulation
 
 	float atten;			// attenuation gain, [0.0, 1.0]
 	float pan;			// -1.0 = L, 1.0 = R
@@ -90,6 +92,8 @@ struct sample {
 	// how many frames have passed since gate was closed
 	double gate_release_cnt;
 	double gate_close_gain; // gain at time of gate close
+
+	struct bus *output_bus;	// used for manipulating mixer structure
 };
 
 
@@ -127,6 +131,8 @@ struct file_browser {
 // program state held by platform code
 struct sp_state {
 	struct bus master;
+	void *master_mutex;
+
 	struct sampler sampler;
 	struct file_browser file_browser;
 	struct font fonts[NUM_FONTS]; // array of fonts

@@ -13,7 +13,7 @@ static char is_key_down(struct key_input *input, int key)
 /// Sampler Update
 
 // compresses envelope times if active length is shrunk
-static void squeeze_envelope(struct sample *s )
+static inline void squeeze_envelope(struct sample *s )
 {
 	if (s->end_frame - s->start_frame > s->attack + s->release) return;
 	float r = (float) s->attack / (s->release + s->attack);
@@ -21,7 +21,7 @@ static void squeeze_envelope(struct sample *s )
 	s->release = s->end_frame - s->start_frame - s->attack;
 }
 
-static double get_envelope_gain(struct sample* s)
+static inline double get_envelope_gain(struct sample* s)
 {
 	double g = 1.0;
 	if (s->attack && s->next_frame - s->start_frame < s->attack) {
@@ -55,7 +55,7 @@ static void close_gate(struct sample* s)
 	}
 }
 
-static void trigger_sample(struct sample* s)
+static inline void trigger_sample(struct sample* s)
 {
 	if (!s->reverse) s->next_frame = s->start_frame;
 	else s->next_frame = s->end_frame - 1.0;
@@ -66,7 +66,7 @@ static void trigger_sample(struct sample* s)
 	s->gate_closed = false;
 }
 
-static int kill_sample(struct sample* s)
+static inline int kill_sample(struct sample* s)
 {
 	if (!s) return 1;
 	s->playing = false;
@@ -81,7 +81,37 @@ static int kill_sample(struct sample* s)
 	return 0;
 }
 
-static inline void process_pad_press(struct sp_state *sp_state, struct key_input *input, int key, int pad)
+static inline void detach_sample_from_mixer(struct sample *s, struct sp_state *sp_state)
+{
+	ASSERT(s && sp_state);
+	ASSERT(!platform_mutex_lock(sp_state->master_mutex));
+
+	struct bus *b = s->output_bus;
+	if (b) {
+		for (int i = 0; i < b->num_sample_ins; i++) {
+			if (b->sample_ins[i] == s) {
+				b->sample_ins[i] = b->sample_ins[b->num_sample_ins - 1];
+				b->sample_ins = realloc(b->sample_ins, sizeof(struct sample *) * --(b->num_sample_ins));
+			}
+		}
+	}
+
+	ASSERT(!platform_mutex_unlock(sp_state->master_mutex));
+}
+
+static inline void attach_sample_to_bus(struct sample *s, struct bus *b, struct sp_state *sp_state)
+{
+	ASSERT(s && b && sp_state);
+	ASSERT(!platform_mutex_lock(sp_state->master_mutex));
+
+	s->output_bus = b;
+	b->sample_ins = realloc(b->sample_ins, sizeof(struct sample *) * ++(b->num_sample_ins));
+	b->sample_ins[b->num_sample_ins - 1] = s;
+
+	ASSERT(!platform_mutex_unlock(sp_state->master_mutex));
+}
+
+static void process_pad_press(struct sp_state *sp_state, struct key_input *input, int key, int pad)
 {
 	int alt = is_key_down(input, KEY_SHIFT_L) || is_key_down(input, KEY_SHIFT_R); 
 	struct sampler *sampler = &sp_state->sampler;
@@ -120,22 +150,31 @@ static inline void process_pad_press(struct sp_state *sp_state, struct key_input
 					// otherwise free audio data of sample at dest pad
 					if (*sampler->pad_src) {
 						struct sample **dest_pad = banks[curr_bank] + pad;
-						
-						// if dest_pad is not occupied
-						if (!*dest_pad){
-							*dest_pad = malloc(sizeof(struct sample));
-							sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * ++(sp_state->master.num_sample_ins));
-							sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1] = *dest_pad;
-						} else {
+
+						// copy pad_src to new sample
+						struct sample *new_samp = malloc(sizeof(struct sample));
+						*new_samp = **sampler->pad_src;
+						if(new_samp->playing) kill_sample(new_samp);
+
+						// TODO may need to copy path as well idk
+						// copy data
+						int64_t data_size = sizeof(double) * new_samp->num_frames * NUM_CHANNELS;
+						new_samp->data = malloc(data_size);
+						memcpy(new_samp->data, (*sampler->pad_src)->data, data_size);
+
+						// attach new_samp to mixing tree
+						attach_sample_to_bus(new_samp, (*sampler->pad_src)->output_bus, sp_state);
+
+						// if dest_pad is occupied detach the sample from mixer and free the sample
+						if (*dest_pad) {
+							detach_sample_from_mixer(*dest_pad, sp_state);
+							if ((*dest_pad)->path) free((*dest_pad)->path);
 							if ((*dest_pad)->data) free((*dest_pad)->data);
+							free(*dest_pad);
 						}
 
-						**dest_pad = **sampler->pad_src;
-						if((*dest_pad)->playing) kill_sample(*dest_pad);
-						// copy data
-						int64_t data_size = sizeof(double) * (*dest_pad)->num_frames * NUM_CHANNELS;
-						(*dest_pad)->data = malloc(data_size);
-						memcpy((*dest_pad)->data, (*sampler->pad_src)->data, data_size);
+						// assign to pad
+						*dest_pad = new_samp;
 					}
 
 					sampler->move_mode = NONE;
@@ -658,8 +697,10 @@ static int load_directory_to_browser(struct file_browser *fb, const char *dir)
 	}
 }
 
+
+
 // TODO currently routes all audio to master
-static inline void load_sample_from_browser(struct sp_state *sp_state, int pad)
+static void load_sample_from_browser(struct sp_state *sp_state, int pad)
 {
 	struct file_browser *fb = &sp_state->file_browser;
 	struct sampler *sampler = &(sp_state->sampler);
@@ -686,14 +727,7 @@ static inline void load_sample_from_browser(struct sp_state *sp_state, int pad)
 		// if target pad is occupied delete that sample
 		if (*dest_pad) {
 			// remove sample ptr from master bus
-			// TODO will need to generalize to aux busses later
-			for (int i = 0; i < sp_state->master.num_sample_ins; i++) {
-				if (sp_state->master.sample_ins[i] == *dest_pad) {
-					sp_state->master.sample_ins[i] = sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1];
-					sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * --(sp_state->master.num_sample_ins));
-					break;
-				}
-			}
+			detach_sample_from_mixer(*dest_pad, sp_state);
 
 			// free sample
 			if ((*dest_pad)->path) free((*dest_pad)->path);
@@ -704,9 +738,9 @@ static inline void load_sample_from_browser(struct sp_state *sp_state, int pad)
 
 		// assign new sample to pad
 		*dest_pad = new_samp;
-		sp_state->master.sample_ins = realloc(sp_state->master.sample_ins, sizeof(struct sample *) * ++(sp_state->master.num_sample_ins));
-		sp_state->master.sample_ins[sp_state->master.num_sample_ins - 1] = new_samp;
+		attach_sample_to_bus(*dest_pad, &sp_state->master, sp_state);
 
+		// set current sampler paramaters
 		sp_state->sampler.active_sample = new_samp;
 		sp_state->sampler.curr_pad = pad;
 
