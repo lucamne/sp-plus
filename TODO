@@ -3,10 +3,12 @@ FIGMA DESIGN: https://www.figma.com/design/Y4c5zMXcFONRbHBwzL4usA/Untitled?node-
 
 PLATFORM STUFF
 ------------------------------------------
- Create Logging
+Create Logging
 
 PROGRAM STUFF
 ------------------------------------------
+allow dynamic changing of audio device
+
 Implement a command interface for settings and maybe reading a config
 
 Support loading mp3
@@ -21,7 +23,7 @@ may want pad struct to track sample as well as pad number
 
 Sample init process may need improvements
 
-File Browser
+FILE BROWSER
 -----------------------------------------
 dialog box for loading samples
 
@@ -33,6 +35,7 @@ Maybe cancel file load on tab
 Load folder into sampler
 Pass a filter_file function to platform
 
+
 MISC
 ----------------------------------
 Consider making platform_load_entire_file not responsible for allocation
@@ -42,7 +45,6 @@ Add error log screen
 
 ISSUES
 ------------------------------------------------
-Popping in green test (seems like it was a hardware issue)
 
 BONUS
 ------------------------------------------------

@@ -374,7 +374,7 @@ int main (int argc, char **argv)
 	/* main update and render loop */
 
 	// frame cap data
-	const int target_fps = 30;
+	const int target_fps = 15;
 	const long target_npf = (long) NSEC_PER_SEC / target_fps;
 	struct timespec start_time_rt;
 	clock_gettime(CLOCK_REALTIME, &start_time_rt);

@@ -81,34 +81,123 @@ static inline int kill_sample(struct sample* s)
 	return 0;
 }
 
+// find bus with sample s and replace with null
 static inline void detach_sample_from_mixer(struct sample *s, struct sp_state *sp_state)
 {
 	ASSERT(s && sp_state);
-	ASSERT(!platform_mutex_lock(sp_state->master_mutex));
+
+	int err;
+	err = platform_mutex_lock(sp_state->mixer.master_mutex);
+	ASSERT(!err);
 
 	struct bus *b = s->output_bus;
 	if (b) {
-		for (int i = 0; i < b->num_sample_ins; i++) {
-			if (b->sample_ins[i] == s) {
-				b->sample_ins[i] = b->sample_ins[b->num_sample_ins - 1];
-				b->sample_ins = realloc(b->sample_ins, sizeof(struct sample *) * --(b->num_sample_ins));
-			}
+		if (b->sample_in == s) {
+			b->sample_in = NULL;
 		}
 	}
 
-	ASSERT(!platform_mutex_unlock(sp_state->master_mutex));
+	err = platform_mutex_unlock(sp_state->mixer.master_mutex);
+	ASSERT(!err);
 }
 
+// replace sample_in of bus b with s
 static inline void attach_sample_to_bus(struct sample *s, struct bus *b, struct sp_state *sp_state)
 {
 	ASSERT(s && b && sp_state);
-	ASSERT(!platform_mutex_lock(sp_state->master_mutex));
 
+	struct mixer *mixer = &(sp_state->mixer);
+	int err;
+	err = platform_mutex_lock(mixer->master_mutex);
+	ASSERT(!err);
+
+	// attach bus to tree
 	s->output_bus = b;
-	b->sample_ins = realloc(b->sample_ins, sizeof(struct sample *) * ++(b->num_sample_ins));
-	b->sample_ins[b->num_sample_ins - 1] = s;
+	b->sample_in = s;
 
-	ASSERT(!platform_mutex_unlock(sp_state->master_mutex));
+	// TODO multi sample_in code can be deleted eventually
+	/*
+	   b->sample_ins = realloc(b->sample_ins, sizeof(struct sample *) * ++(b->num_sample_ins));
+	   b->sample_ins[b->num_sample_ins - 1] = s;
+	   */
+
+	err = platform_mutex_unlock(mixer->master_mutex);
+	ASSERT(!err);
+}
+
+// attachs child bus to parent bus in mixing tree
+static void attach_bus(struct bus *child, struct bus *parent, const struct sp_state *sp_state)
+{
+	int err = platform_mutex_lock(sp_state->mixer.master_mutex);
+	ASSERT(!err);
+
+	parent->bus_ins = realloc(parent->bus_ins, sizeof(struct bus *) * ++(parent->num_bus_ins));
+	parent->bus_ins[parent->num_bus_ins - 1] = child;
+	child->output_bus = parent;
+
+	err = platform_mutex_unlock(sp_state->mixer.master_mutex);
+	ASSERT(!err);
+}
+
+// detach bus from mixing tree and remove from bus list
+static void detach_bus_from_mixer(struct bus *b, struct sp_state *sp_state)
+{
+	int err = platform_mutex_lock(sp_state->mixer.master_mutex);
+	ASSERT(!err);
+
+	struct bus *parent = b->output_bus;
+	for (int i = 0; i < parent->num_bus_ins; i++) {
+		if (parent->bus_ins[i] == b) {
+			parent->bus_ins[i] = parent->bus_ins[parent->num_bus_ins - 1];
+			break;
+		}
+	}
+	parent->bus_ins = realloc(parent->bus_ins, sizeof(struct bus *) * --(parent->num_bus_ins));
+	b->output_bus = NULL;
+
+
+	err = platform_mutex_unlock(sp_state->mixer.master_mutex);
+	ASSERT(!err);
+}
+
+// allocates and inits a new bus structure
+static struct bus *init_bus(struct sp_state *sp_state)
+{
+	struct bus *new_bus = calloc(1, sizeof(*new_bus));
+	if (!new_bus) return NULL;
+
+	// setup bus label
+	int MAX_LABEL_LEN = 10;
+	new_bus->label = malloc(MAX_LABEL_LEN);
+	snprintf(new_bus->label, MAX_LABEL_LEN, "bus %d", sp_state->mixer.next_label++);
+
+	// add bus to bus list
+	sp_state->mixer.bus_list = realloc(sp_state->mixer.bus_list, 
+			sizeof(struct bus *) * ++(sp_state->mixer.num_bus));
+	sp_state->mixer.bus_list[sp_state->mixer.num_bus - 1] = new_bus;
+
+	return new_bus;
+}
+
+// frees a bus and removes it from bus list
+static void free_bus(struct bus **b, struct sp_state *sp_state)
+{
+	ASSERT(b && *b && sp_state);
+	struct mixer *m = &sp_state->mixer;
+
+	for (int i = 0; i < m->num_bus; i++) {
+		// remove b from bus_list
+		if (m->bus_list[i] == *b) 
+			m->bus_list[i] = m->bus_list[m->num_bus - 1];
+		// find child busses and set their bus output to NULL
+		if (m->bus_list[i]->output_bus == *b)
+			m->bus_list[i]->output_bus = NULL;
+	}
+	m->bus_list = realloc(m->bus_list, sizeof(struct bus *) * --(m->num_bus));
+
+	if ((*b)->label) free((*b)->label);
+	if ((*b)->bus_ins) free((*b)->bus_ins);
+	free(*b);
 }
 
 static void process_pad_press(struct sp_state *sp_state, struct key_input *input, int key, int pad)
@@ -152,23 +241,35 @@ static void process_pad_press(struct sp_state *sp_state, struct key_input *input
 						struct sample **dest_pad = banks[curr_bank] + pad;
 
 						// copy pad_src to new sample
-						struct sample *new_samp = malloc(sizeof(struct sample));
+						struct sample *new_samp = malloc(sizeof(*new_samp));
 						*new_samp = **sampler->pad_src;
-						if(new_samp->playing) kill_sample(new_samp);
 
-						// TODO may need to copy path as well idk
+						// copy name
+						new_samp->name = malloc(strlen((*sampler->pad_src)->name) + 1);
+						strcpy(new_samp->name, (*sampler->pad_src)->name);
+
 						// copy data
 						int64_t data_size = sizeof(double) * new_samp->num_frames * NUM_CHANNELS;
 						new_samp->data = malloc(data_size);
 						memcpy(new_samp->data, (*sampler->pad_src)->data, data_size);
 
-						// attach new_samp to mixing tree
-						attach_sample_to_bus(new_samp, (*sampler->pad_src)->output_bus, sp_state);
+						// copied should start not playing
+						if(new_samp->playing) kill_sample(new_samp);
+
+						// create bus for new sample and copy some data from src_bus
+						struct bus *src_bus = (*sampler->pad_src)->output_bus;
+						struct bus *new_bus = init_bus(sp_state);
+						new_bus->pan = src_bus->pan;
+						new_bus->atten = src_bus->atten;
+
+						// attach new_bus and new_samp
+						attach_bus(new_bus, src_bus->output_bus, sp_state);
+						attach_sample_to_bus(new_samp, new_bus, sp_state);
 
 						// if dest_pad is occupied detach the sample from mixer and free the sample
 						if (*dest_pad) {
-							detach_sample_from_mixer(*dest_pad, sp_state);
-							if ((*dest_pad)->path) free((*dest_pad)->path);
+							// detach_sample_from_mixer(*dest_pad, sp_state);
+							if ((*dest_pad)->name) free((*dest_pad)->name);
 							if ((*dest_pad)->data) free((*dest_pad)->data);
 							free(*dest_pad);
 						}
@@ -493,8 +594,17 @@ static struct sample *load_sample_from_wav(const char *path)
 	}
 
 	new_samp->speed = 1.0;	
-	new_samp->path = malloc(sizeof(char) * (strlen(path) + 1));
-	if (new_samp->path) strcpy(new_samp->path, path);
+
+	// extract file name
+	int name_start = 0;
+	for (int i = 0; i < (int) strlen(path) - 1; i++)
+	{
+		// TODO this might not work for windows be careful when porting
+		if (path[i] == '/') name_start = i + 1;
+	}
+
+	new_samp->name = malloc(strlen(path) - name_start + 1);
+	if (new_samp->name) strcpy(new_samp->name, path + name_start);
 
 
 	// any read should not read the end_ptr or anything past it
@@ -697,9 +807,6 @@ static int load_directory_to_browser(struct file_browser *fb, const char *dir)
 	}
 }
 
-
-
-// TODO currently routes all audio to master
 static void load_sample_from_browser(struct sp_state *sp_state, int pad)
 {
 	struct file_browser *fb = &sp_state->file_browser;
@@ -726,23 +833,40 @@ static void load_sample_from_browser(struct sp_state *sp_state, int pad)
 
 		// if target pad is occupied delete that sample
 		if (*dest_pad) {
-			// remove sample ptr from master bus
+			// attach_sample can replace old sample but don't want playback thread to access freed sample
 			detach_sample_from_mixer(*dest_pad, sp_state);
 
+			// detach output_bus
+			struct bus **out_bus = &(*dest_pad)->output_bus;
+			detach_bus_from_mixer(*out_bus, sp_state);
+
+			// free output bus
+			free_bus(out_bus, sp_state);
+			
 			// free sample
-			if ((*dest_pad)->path) free((*dest_pad)->path);
+			if ((*dest_pad)->name) free((*dest_pad)->name);
 			if ((*dest_pad)->data) free((*dest_pad)->data);
 			free(*dest_pad);
 
 		} 
 
-		// assign new sample to pad
-		*dest_pad = new_samp;
-		attach_sample_to_bus(*dest_pad, &sp_state->master, sp_state);
+		// create new bus and attach to master
+		struct bus *new_bus = init_bus(sp_state);
+		if (new_bus) {
+			new_bus->label = malloc(strlen(new_samp->name) + 1);
+			strcpy(new_bus->label, new_samp->name);
+			attach_bus(new_bus, &sp_state->mixer.master, sp_state);
 
-		// set current sampler paramaters
-		sp_state->sampler.active_sample = new_samp;
-		sp_state->sampler.curr_pad = pad;
+			// assign new sample to pad and attach to bus
+			*dest_pad = new_samp;
+			attach_sample_to_bus(*dest_pad, new_bus, sp_state);
+
+			// set current sampler paramaters
+			sp_state->sampler.active_sample = new_samp;
+			sp_state->sampler.curr_pad = pad;
+		} else {
+			fprintf(stderr, "Error initializing bus\n");
+		}
 
 	}
 	fb->loading_to_pad = 0;
@@ -776,7 +900,7 @@ static void update_file_browser(struct sp_state *sp_state, struct key_input *inp
 		else if (is_key_pressed(input, KEY_S)) load_sample_from_browser(sp_state, PAD_S);
 		else if (is_key_pressed(input, KEY_D)) load_sample_from_browser(sp_state, PAD_D);
 		else if (is_key_pressed(input, KEY_F)) load_sample_from_browser(sp_state, PAD_F);
-		
+
 		else if (is_key_pressed(input, KEY_ESCAPE)) fb->loading_to_pad = 0;
 
 	} else {
@@ -823,4 +947,54 @@ static void update_file_browser(struct sp_state *sp_state, struct key_input *inp
 		}
 	}
 
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// MIXER
+
+static void update_mixer(struct sp_state *sp_state, struct key_input *input)
+{
+	struct mixer *mixer = &sp_state->mixer;
+	const char alt = is_key_down(input, KEY_SHIFT_L) || is_key_down(input, KEY_SHIFT_R); 
+
+	// scroll down through file list
+	if (input->num_key_press[KEY_DOWN]) {
+		if (mixer->selected_bus < mixer->num_bus - 1) mixer->selected_bus++;
+	}
+
+	// scroll up through file list
+	if (input->num_key_press[KEY_UP]) {
+		if (mixer->selected_bus > 0) mixer->selected_bus--;
+	}
+
+	// atten (level)
+	if (input->num_key_press[KEY_L]) {
+		if (!alt) {
+			if (mixer->bus_list[mixer->selected_bus]->atten > 0.02)
+				mixer->bus_list[mixer->selected_bus]->atten -= 0.02f;
+			else 
+				mixer->bus_list[mixer->selected_bus]->atten = 0.0f;
+		} else {
+			if (mixer->bus_list[mixer->selected_bus]->atten < 0.98f)
+				mixer->bus_list[mixer->selected_bus]->atten += 0.02f;
+			else 
+				mixer->bus_list[mixer->selected_bus]->atten = 1.0f;
+		}
+	}
+
+	// pan
+	if (input->num_key_press[KEY_P]) {
+		if (!alt) {
+			if (mixer->bus_list[mixer->selected_bus]->pan > -0.98)
+				mixer->bus_list[mixer->selected_bus]->pan -= 0.02f;
+			else 
+				mixer->bus_list[mixer->selected_bus]->pan = -1.0f;
+		} else {
+			if (mixer->bus_list[mixer->selected_bus]->pan < 0.98f)
+				mixer->bus_list[mixer->selected_bus]->pan += 0.02f;
+			else 
+				mixer->bus_list[mixer->selected_bus]->pan = 1.0f;
+		}
+	}
 }

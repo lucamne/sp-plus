@@ -1,7 +1,7 @@
 #include <alsa/asoundlib.h>
 
-static unsigned int period_time = 2500;		// period time in usec
-static unsigned int buffer_time = 5000;		// buffer time in usec
+static unsigned int period_time = 5000;		// period time in usec
+static unsigned int buffer_time = 10000;	// buffer time in usec
 
 // setup hardware parameters
 static int set_hwparams(

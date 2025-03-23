@@ -132,14 +132,23 @@ static struct frame_data process_next_frame(/*double out[], */struct sample* s)
 static void process_leaf_nodes(double out[], struct bus* b)
 {
 	// process samples
+	if (b->sample_in && b->sample_in->playing) {
+		struct frame_data tmp_out = process_next_frame(b->sample_in);
+		out[0] += tmp_out.l;
+		out[1] += tmp_out.r;
+	}
+
+	// TODO remove this
+	/*
 	for (int i = 0; i < b->num_sample_ins; i++) {
 		if(b->sample_ins[i]->playing) {
 			// double tmp_out[NUM_CHANNELS] = {0};
-			struct frame_data tmp_out = process_next_frame(/*tmp_out, */b->sample_ins[i]);
+			struct frame_data tmp_out = process_next_frame(tmp_out, b->sample_ins[i]);
 			out[0] += tmp_out.l;
 			out[1] += tmp_out.r;
 		}
 	}
+	*/
 
 
 	// process bus inputs
@@ -157,9 +166,12 @@ static void process_leaf_nodes(double out[], struct bus* b)
 // relies on other audio playback functions
 int sp_plus_fill_audio_buffer(void *sp_state, void* buffer, int frames)
 {
-	ASSERT(!platform_mutex_lock(((struct sp_state *) sp_state)->master_mutex));
+	int err;
+	err = platform_mutex_lock(((struct sp_state *) sp_state)->mixer.master_mutex);
+	ASSERT(!err);
 
-	struct bus master = ((struct sp_state *) sp_state)->master;
+	// TODO use reference instead of copy maybe?
+	struct bus master = ((struct sp_state *) sp_state)->mixer.master;
 	static double out[NUM_CHANNELS] = {0, 0};
 	// process i frames
 	for (int i = 0; i < frames; i++){
@@ -182,7 +194,8 @@ int sp_plus_fill_audio_buffer(void *sp_state, void* buffer, int frames)
 		memcpy((char *)buffer + i * sizeof(int_out), int_out, sizeof(int_out));
 	}
 
-	ASSERT(!platform_mutex_unlock(((struct sp_state *) sp_state)->master_mutex));
+	err = platform_mutex_unlock(((struct sp_state *) sp_state)->mixer.master_mutex);
+	ASSERT(!err);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -198,12 +211,21 @@ void *sp_plus_allocate_state(void)
 	struct sp_state *s = calloc(1, sizeof(struct sp_state));
 	if (!s) return NULL;
 
-	s->master_mutex = platform_init_mutex();
-	if (!s->master_mutex) {
+	// init mixer
+	s->mixer.master.label = malloc(strlen("master") + 1);
+	strcpy(s->mixer.master.label, "master");
+
+	s->mixer.master_mutex = platform_init_mutex();
+	if (!s->mixer.master_mutex) {
 		fprintf(stderr, "Error allocating state memory\n");
 		exit(1);
 	}
 
+	s->mixer.bus_list = malloc(sizeof(struct bus *));
+	*s->mixer.bus_list = &s->mixer.master;
+	s->mixer.num_bus = 1;
+
+	s->mixer.next_label = 1;
 
 	// initialize a sample bank with 8 samples
 	s->sampler.zoom = 1;
@@ -293,6 +315,9 @@ void sp_plus_update_and_render(
 		case FILE_BROWSER:
 			update_file_browser(sp_state, input);
 			break;
+		case MIXER:
+			update_mixer(sp_state, input);
+			break;
 		case SAMPLER:
 		default:
 			update_sampler(sp_state, input);
@@ -308,4 +333,5 @@ void sp_plus_update_and_render(
 	clear_pixel_buffer(&buffer);
 	draw_sampler(sp_state, &buffer);
 	draw_file_browser(sp_state, &buffer);
+	draw_mixer(sp_state, &buffer);
 }

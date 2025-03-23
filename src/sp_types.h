@@ -41,12 +41,12 @@ struct sampler {
 	int max_vert;			// max vertices to render in wave viewer
 };
 
-// TODO will change when more mixer code is written
 // Used to route and mix audio data
 // busses will have one output allowing mixer to be represented as a tree
 struct bus {
-	struct sample** sample_ins;	// sample inputs
-	int num_sample_ins;
+	char *label; 			// bus label
+
+	struct sample *sample_in;	// sample inputs
 
 	struct bus** bus_ins;		// bus inputs
 	int num_bus_ins;
@@ -60,10 +60,26 @@ struct bus {
 	// bool solo;			// is this bus soloed
 };
 
+struct mixer {
+	struct bus master;		// bus tree root
+					// gets passed to playback code
+	void *master_mutex;		// mutex for bus tree
+	
+	struct bus **bus_list;		// pointers to busses to be used by ui
+					// need a lock for this if update
+					// and ui code run conccurently
+
+	int num_bus;			// number of busses
+	int next_label;			// give a new bus this number
+
+ 	int selected_bus;
+};
+
 // container for audio data
 // the source of all playback is a sample
 struct sample {
-	char* path;
+	char* name;
+
 	double* data;		// 16_bit float data
 	int32_t start_frame;	// start playback on this frame
 	int32_t end_frame;	// end when this frame is reached 
@@ -130,15 +146,14 @@ struct file_browser {
 
 // program state held by platform code
 struct sp_state {
-	struct bus master;
-	void *master_mutex;
-
+	struct mixer mixer;
 	struct sampler sampler;
 	struct file_browser file_browser;
 	struct font fonts[NUM_FONTS]; // array of fonts
 
 	enum {
 		SAMPLER = 0,
+		MIXER,
 		FILE_BROWSER
 	} control_mode;
 };

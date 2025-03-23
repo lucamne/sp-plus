@@ -172,9 +172,9 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 	txt_pos.y = origin.y + VIEWER_H;
 	int max_filepath_width = VIEWER_W - 20 - get_text_width("file: ", curr_font);
 
-	if (get_text_width(active_sample->path, curr_font) > max_filepath_width) {
+	if (get_text_width(active_sample->name, curr_font) > max_filepath_width) {
 		char *file_path = truncate_text_to_width(
-				active_sample->path, 
+				active_sample->name, 
 				curr_font, 
 				max_filepath_width - get_text_width("...", curr_font)
 				, 1);
@@ -182,7 +182,7 @@ static void draw_sampler(const struct sp_state *sp_state, const struct pixel_buf
 		snprintf(txt, 64, "file: ...%s", file_path);
 		free(file_path);
 	} else {
-		snprintf(txt, 64, "file: %s", active_sample->path);
+		snprintf(txt, 64, "file: %s", active_sample->name);
 	}
 	draw_text(buffer, txt, sp_state->fonts + MED, txt_pos, WHITE);
 
@@ -457,7 +457,7 @@ static void draw_file_browser(struct sp_state *sp_state, struct pixel_buffer *pi
 
 	// draw files
 	txt_pos.y += HEADER_H;
-	for (int i = start_index; i < start_index + MAX_FILES && i < fb->num_files; i++) {
+	for (int i = start_index; i - start_index < MAX_FILES && i < fb->num_files; i++) {
 		// highlight selected file
 		if (i == fb->selected_file) {
 			draw_rec(pix_buff, (vec2i) {origin.x + 1, txt_pos.y}, BORDER_W - 2, FILE_SPACING, WHITE);
@@ -471,4 +471,68 @@ static void draw_file_browser(struct sp_state *sp_state, struct pixel_buffer *pi
 		txt_pos.y += FILE_SPACING;
 
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Mixer
+
+// TODO may want to remove the use of bus list
+static void draw_mixer(struct sp_state *sp_state, struct pixel_buffer *pix_buff)
+{
+	vec2i origin = {0, 400};
+	const struct font *curr_font = sp_state->fonts + MED;
+	struct mixer *mixer = &sp_state->mixer;
+
+	int BORDER_W = 600;
+	int BORDER_H = 400;
+	int BUS_HEIGHT = 50;
+
+	const int MAX_BUSSES = BORDER_H / BUS_HEIGHT;
+
+	// bus list
+	// determine fov
+	int start_index = 0;
+	if (mixer->selected_bus >= MAX_BUSSES / 2)
+		start_index = mixer->selected_bus - MAX_BUSSES / 2;
+	if (mixer->num_bus >= MAX_BUSSES && mixer->num_bus - start_index < MAX_BUSSES)
+		start_index = mixer->num_bus - MAX_BUSSES;
+
+	// draw busses
+	vec2i bus_pos = origin;
+	char txt[64];
+
+	for (int i = start_index; i < mixer->num_bus && i - start_index < MAX_BUSSES; i++) {
+		struct bus *curr_bus = mixer->bus_list[i];
+		Color txt_color;
+
+		if (mixer->selected_bus == i) {
+			draw_rec(pix_buff, bus_pos, BORDER_W, BUS_HEIGHT, WHITE);
+			txt_color = BLACK;
+		} else {
+			draw_rec_outline(pix_buff, bus_pos, BORDER_W, BUS_HEIGHT, WHITE);
+			txt_color = WHITE;
+		}
+
+		// bus label / output
+		// first bus is master
+		if (i == 0) {
+			snprintf(txt, 64, "%s -> out", curr_bus->label);
+		} else {
+			ASSERT(curr_bus->output_bus && curr_bus->output_bus->label);
+			snprintf(txt, 64, "%s -> %s", curr_bus->label, curr_bus->output_bus->label);
+		}
+		draw_text(pix_buff, txt, curr_font, (vec2i) {bus_pos.x + 5, bus_pos.y}, txt_color);
+
+		// atten / pan
+		snprintf(txt, 64, "level: %.2f pan: %.2f", 1.0f - curr_bus->atten, curr_bus->pan);
+		draw_text(pix_buff, txt, curr_font, (vec2i) {bus_pos.x + 5, bus_pos.y + 20}, txt_color);
+
+		bus_pos.y += BUS_HEIGHT;
+	}
+
+	// border
+	if (sp_state->control_mode == MIXER)
+		draw_rec_outline(pix_buff, origin, BORDER_W, BORDER_H, RED);
+	else
+		draw_rec_outline(pix_buff, origin, BORDER_W, BORDER_H, WHITE);
 }

@@ -23,3 +23,12 @@ File Browser
 -----------------
 Scroll Up/Down: Up-Arrow / Down-Arrow
 Load sample into pad: Right-Arrow
+Enter directory: Right-Arrow
+exit directory: Left-Arrow
+Cancel sample load: ESC
+
+Mixer
+----------------------
+Scroll Up/Down: Up-Arrow / Down-Arrow
+Level Up/Down: L / L + SHIFT
+Pan Left/Right: P / P + SHIFT
