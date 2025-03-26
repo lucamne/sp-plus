@@ -131,29 +131,19 @@ static struct frame_data process_next_frame(/*double out[], */struct sample* s)
 // a single sample input.
 static void process_leaf_nodes(double out[], struct bus* b)
 {
-	// process samples
-	if (b->sample_in && b->sample_in->playing) {
-		struct frame_data tmp_out = process_next_frame(b->sample_in);
-		out[0] += tmp_out.l;
-		out[1] += tmp_out.r;
-	}
-
-	// TODO remove this
-	/*
-	for (int i = 0; i < b->num_sample_ins; i++) {
-		if(b->sample_ins[i]->playing) {
-			// double tmp_out[NUM_CHANNELS] = {0};
-			struct frame_data tmp_out = process_next_frame(tmp_out, b->sample_ins[i]);
+	// process sample
+	if (b->sample_in) {
+		if (b->sample_in->playing) {
+			struct frame_data tmp_out = process_next_frame(b->sample_in);
 			out[0] += tmp_out.l;
 			out[1] += tmp_out.r;
 		}
-	}
-	*/
-
 
 	// process bus inputs
-	for (int i = 0; i < b->num_bus_ins; i++)
-		process_leaf_nodes(out, b->bus_ins[i]);
+	} else {
+		for (int i = 0; i < b->num_bus_ins; i++)
+			process_leaf_nodes(out, b->bus_ins[i]);
+	}
 
 	// apply bus dsp
 	out[0] *= (1.0 - b->atten);
@@ -171,13 +161,13 @@ int sp_plus_fill_audio_buffer(void *sp_state, void* buffer, int frames)
 	ASSERT(!err);
 
 	// TODO use reference instead of copy maybe?
-	struct bus master = ((struct sp_state *) sp_state)->mixer.master;
+	struct bus *master = &((struct sp_state *) sp_state)->mixer.master;
 	static double out[NUM_CHANNELS] = {0, 0};
 	// process i frames
 	for (int i = 0; i < frames; i++){
 		out[0] = 0;
 		out[1] = 0;
-		process_leaf_nodes(out, &master);
+		process_leaf_nodes(out, master);
 		// alsa expects 16 bit int
 		int16_t int_out[NUM_CHANNELS];
 		// convert left

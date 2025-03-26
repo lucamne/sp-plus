@@ -104,6 +104,8 @@ static int key_x_to_sp(XKeyEvent *ev)
 			return KEY_RIGHT;
 		case XK_Tab:
 			return KEY_TAB;
+		case XK_Return:
+			return KEY_ENTER;
 		case XK_Escape:
 			return KEY_ESCAPE;
 		default:
@@ -184,6 +186,8 @@ static int key_sp_to_x (Display *d, int key)
 			return XKeysymToKeycode(d, XK_Right);
 		case KEY_TAB:
 			return XKeysymToKeycode(d, XK_Tab);
+		case KEY_ENTER:
+			return XKeysymToKeycode(d, XK_Return);
 		case KEY_ESCAPE:
 			return XKeysymToKeycode(d, XK_Escape);
 		default:

@@ -483,9 +483,9 @@ static void draw_mixer(struct sp_state *sp_state, struct pixel_buffer *pix_buff)
 	const struct font *curr_font = sp_state->fonts + MED;
 	struct mixer *mixer = &sp_state->mixer;
 
-	int BORDER_W = 600;
-	int BORDER_H = 400;
-	int BUS_HEIGHT = 50;
+	const int BORDER_W = 600;
+	const int BORDER_H = 400;
+	const int BUS_HEIGHT = 50;
 
 	const int MAX_BUSSES = BORDER_H / BUS_HEIGHT;
 
@@ -528,6 +528,40 @@ static void draw_mixer(struct sp_state *sp_state, struct pixel_buffer *pix_buff)
 		draw_text(pix_buff, txt, curr_font, (vec2i) {bus_pos.x + 5, bus_pos.y + 20}, txt_color);
 
 		bus_pos.y += BUS_HEIGHT;
+	}
+
+	// delete dialog 
+	if (mixer->update_mode == DELETE) {
+		int DLG_BOX_H = BORDER_H / 4;
+		int DLG_BOX_W = BORDER_W / 2;
+		vec2i dlg_box_pos;
+
+		dlg_box_pos.x = origin.x + BORDER_W / 2 - DLG_BOX_W / 2;
+		dlg_box_pos.y = origin.y + BORDER_H / 2 - DLG_BOX_H / 2;
+		draw_rec_outline(pix_buff, dlg_box_pos, DLG_BOX_W, DLG_BOX_H, WHITE);
+
+		dlg_box_pos.x += 1;
+		dlg_box_pos.y += 1;
+		draw_rec(pix_buff, dlg_box_pos, DLG_BOX_W - 2, DLG_BOX_H - 2, BLACK);
+
+		// make sure bus name fits in dialog box
+		char *bus_label = mixer->bus_list[mixer->selected_bus]->label;
+		int bus_label_width = get_text_width(bus_label, curr_font);
+		int max_bus_label_width = DLG_BOX_W - 30 - get_text_width("Delete? (Y/N)", curr_font);
+
+		if (bus_label_width > max_bus_label_width) {
+			bus_label = truncate_text_to_width(
+				bus_label, 
+				curr_font, 
+				max_bus_label_width - get_text_width("...", curr_font)
+				, 1);
+
+			snprintf(txt, 64, "Delete ...%s? (Y/N)", bus_label);
+		} else {
+			snprintf(txt, 64, "Delete %s? (Y/N)", bus_label);
+		}
+
+		draw_text(pix_buff, txt, curr_font, (vec2i) {dlg_box_pos.x + 10, dlg_box_pos.y + 5}, WHITE);
 	}
 
 	// border

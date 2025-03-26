@@ -43,6 +43,9 @@ struct sampler {
 
 // Used to route and mix audio data
 // busses will have one output allowing mixer to be represented as a tree
+//
+// busses can have no inputs, a list of bus inputs, or one sample input
+// these restrictions are enforced by audio playback loop
 struct bus {
 	char *label; 			// bus label
 
@@ -60,6 +63,8 @@ struct bus {
 	// bool solo;			// is this bus soloed
 };
 
+
+#define R_BUFF_MAX 64			// bytes to allocate when allocating rename buff
 struct mixer {
 	struct bus master;		// bus tree root
 					// gets passed to playback code
@@ -72,7 +77,16 @@ struct mixer {
 	int num_bus;			// number of busses
 	int next_label;			// give a new bus this number
 
- 	int selected_bus;
+ 	int selected_bus;		// currently hovered bus
+
+	enum {				// controls update pattern for mixer update
+		NORMAL = 0,
+		DELETE,
+		RENAME
+	} update_mode;
+
+	char *r_buff;			// buffer used when capturing input to rename bus
+	int r_buff_pos;			// next byte to write in r_buff
 };
 
 // container for audio data

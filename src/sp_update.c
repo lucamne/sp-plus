@@ -958,43 +958,128 @@ static void update_mixer(struct sp_state *sp_state, struct key_input *input)
 	struct mixer *mixer = &sp_state->mixer;
 	const char alt = is_key_down(input, KEY_SHIFT_L) || is_key_down(input, KEY_SHIFT_R); 
 
-	// scroll down through file list
-	if (input->num_key_press[KEY_DOWN]) {
-		if (mixer->selected_bus < mixer->num_bus - 1) mixer->selected_bus++;
-	}
+	switch (mixer->update_mode) {
+		case DELETE:
+		{
+			// delete bus if y is pressed 
+			// cancel if another key is pressed
+			if (is_key_pressed(input, KEY_Y)) {
+				struct bus *b = mixer->bus_list[mixer->selected_bus];
+				detach_bus_from_mixer(b, sp_state);
+				free_bus(&b, sp_state);
+				mixer->update_mode = NORMAL;
 
-	// scroll up through file list
-	if (input->num_key_press[KEY_UP]) {
-		if (mixer->selected_bus > 0) mixer->selected_bus--;
-	}
+			} else if (input->key_pressed){
+				mixer->update_mode = NORMAL;
+			}
+		} break;
 
-	// atten (level)
-	if (input->num_key_press[KEY_L]) {
-		if (!alt) {
-			if (mixer->bus_list[mixer->selected_bus]->atten > 0.02)
-				mixer->bus_list[mixer->selected_bus]->atten -= 0.02f;
-			else 
-				mixer->bus_list[mixer->selected_bus]->atten = 0.0f;
-		} else {
-			if (mixer->bus_list[mixer->selected_bus]->atten < 0.98f)
-				mixer->bus_list[mixer->selected_bus]->atten += 0.02f;
-			else 
-				mixer->bus_list[mixer->selected_bus]->atten = 1.0f;
-		}
-	}
+		case RENAME:
+		{
 
-	// pan
-	if (input->num_key_press[KEY_P]) {
-		if (!alt) {
-			if (mixer->bus_list[mixer->selected_bus]->pan > -0.98)
-				mixer->bus_list[mixer->selected_bus]->pan -= 0.02f;
-			else 
-				mixer->bus_list[mixer->selected_bus]->pan = -1.0f;
-		} else {
-			if (mixer->bus_list[mixer->selected_bus]->pan < 0.98f)
-				mixer->bus_list[mixer->selected_bus]->pan += 0.02f;
-			else 
-				mixer->bus_list[mixer->selected_bus]->pan = 1.0f;
-		}
+			// get letter input 
+			for (int i = KEY_A; i <= KEY_Z; i++) {
+				for (int c = input->num_key_press[i]; c > 0; c--) {
+					// save one byte from terminating char
+					if (mixer->r_buff_pos < R_BUFF_MAX - 1) {
+						if (alt) {
+							mixer->r_buff[mixer->r_buff_pos++] = 'A' + i;
+						} else {
+							mixer->r_buff[mixer->r_buff_pos++] = 'a' + i;
+						}
+					}
+				}
+			}
+
+			//TODO get number input
+
+			// check for enter
+			if (is_key_pressed(input, KEY_ENTER)) {
+				mixer->r_buff[mixer->r_buff_pos] = '\0';
+
+				// TODO not sure this is correct
+
+				free(mixer->bus_list[mixer->selected_bus]->label);
+				mixer->bus_list[mixer->selected_bus]->label = mixer->r_buff;
+
+				mixer->r_buff = NULL;
+				mixer->update_mode = NORMAL;
+			}
+			// check for escape
+			else if (is_key_pressed(input, KEY_ESCAPE)) {
+				free(mixer->r_buff);
+				mixer->update_mode = NORMAL;
+			}
+
+		} break;
+
+		case NORMAL:
+		default:
+		{
+			// scroll down through file list
+			if (input->num_key_press[KEY_DOWN]) {
+				if (mixer->selected_bus < mixer->num_bus - 1) mixer->selected_bus++;
+			}
+
+			// scroll up through file list
+			if (input->num_key_press[KEY_UP]) {
+				if (mixer->selected_bus > 0) mixer->selected_bus--;
+			}
+
+			// atten (level)
+			if (input->num_key_press[KEY_L]) {
+				if (!alt) {
+					if (mixer->bus_list[mixer->selected_bus]->atten > 0.02)
+						mixer->bus_list[mixer->selected_bus]->atten -= 0.02f;
+					else 
+						mixer->bus_list[mixer->selected_bus]->atten = 0.0f;
+				} else {
+					if (mixer->bus_list[mixer->selected_bus]->atten < 0.98f)
+						mixer->bus_list[mixer->selected_bus]->atten += 0.02f;
+					else 
+						mixer->bus_list[mixer->selected_bus]->atten = 1.0f;
+				}
+			}
+
+			// pan
+			if (input->num_key_press[KEY_P]) {
+				if (alt) {
+					if (mixer->bus_list[mixer->selected_bus]->pan > -0.98)
+						mixer->bus_list[mixer->selected_bus]->pan -= 0.02f;
+					else 
+						mixer->bus_list[mixer->selected_bus]->pan = -1.0f;
+				} else {
+					if (mixer->bus_list[mixer->selected_bus]->pan < 0.98f)
+						mixer->bus_list[mixer->selected_bus]->pan += 0.02f;
+					else 
+						mixer->bus_list[mixer->selected_bus]->pan = 1.0f;
+				}
+			}
+
+			// create new bus
+			if (is_key_pressed(input, KEY_N)) {
+				struct bus *b = init_bus(sp_state);
+				attach_bus(b, &mixer->master, sp_state);
+			}
+
+			// delete selected bus
+			if (is_key_pressed(input, KEY_D)) {
+				// dont delete master lol
+				if (mixer->selected_bus != 0)
+					mixer->update_mode = DELETE;
+			}
+
+			// rename
+			if (is_key_pressed(input, KEY_R)) {
+				// TODO will want to abstract user input maybe
+				mixer->r_buff_pos = 0;
+				if (!(mixer->r_buff = malloc(R_BUFF_MAX))) {
+					fprintf(stderr, "Error allocating input buffer\n");
+					mixer->update_mode = NORMAL;
+				} else {
+					mixer->update_mode = RENAME;
+				}
+			}
+		} 
 	}
 }

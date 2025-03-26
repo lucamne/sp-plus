@@ -35,6 +35,9 @@ Maybe cancel file load on tab
 Load folder into sampler
 Pass a filter_file function to platform
 
+MIXER
+----------------------------------------------
+dialog box for delete
 
 MISC
 ----------------------------------

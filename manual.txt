@@ -32,3 +32,5 @@ Mixer
 Scroll Up/Down: Up-Arrow / Down-Arrow
 Level Up/Down: L / L + SHIFT
 Pan Left/Right: P / P + SHIFT
+New Bus: N
+Delete Bus: D then Y to confirm or any other key to cancel
