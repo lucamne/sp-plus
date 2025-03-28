@@ -5,8 +5,16 @@ PLATFORM STUFF
 ------------------------------------------
 Create Logging
 
+don't read inputs when window is not focused
+
+bottom of screen is hidden by taskbar, decide what to do about this
+pixel drawing seems to be shifted one right
+	may just be the way xlib blits to the screen
+
 PROGRAM STUFF
 ------------------------------------------
+create a text field that can display errors, prompts, and allows for input
+
 allow dynamic changing of audio device
 
 Implement a command interface for settings and maybe reading a config
@@ -15,6 +23,8 @@ Support loading mp3
 
 SAMPLER
 ----------------------------------
+delete sample
+
 Sample Pad manipulation
 	chop sample to other pads
 
@@ -22,6 +32,7 @@ may want pad struct to track sample as well as pad number
 	tracking current pad seperately is awkward
 
 Sample init process may need improvements
+
 
 FILE BROWSER
 -----------------------------------------
@@ -37,7 +48,9 @@ Pass a filter_file function to platform
 
 MIXER
 ----------------------------------------------
-dialog box for delete
+assign output
+
+tree view
 
 MISC
 ----------------------------------

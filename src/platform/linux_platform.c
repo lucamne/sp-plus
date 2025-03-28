@@ -86,6 +86,29 @@ static int key_x_to_sp(XKeyEvent *ev)
 			return KEY_Y;
 		case XK_Z:
 			return KEY_Z;
+		// weird keysyms correspond to number keys on my keyboard
+		case XK_parenright:
+			return KEY_0;
+		case XK_exclam:
+			return KEY_1;
+		case XK_at:
+			return KEY_2;
+		case XK_numbersign:
+			return KEY_3;
+		case XK_dollar:
+			return KEY_4;
+		case XK_percent:
+			return KEY_5;
+		case XK_asciicircum:
+			return KEY_6;
+		case XK_ampersand:
+			return KEY_7;
+		case XK_asterisk:
+			return KEY_8;
+		case XK_parenleft:
+			return KEY_9;
+		case XK_space:
+			return KEY_SPACE;
 		case XK_minus:
 			return KEY_MINUS;
 		case XK_equal:
@@ -106,6 +129,8 @@ static int key_x_to_sp(XKeyEvent *ev)
 			return KEY_TAB;
 		case XK_Return:
 			return KEY_ENTER;
+		case XK_BackSpace:
+			return KEY_BACKSPACE;
 		case XK_Escape:
 			return KEY_ESCAPE;
 		default:
@@ -168,6 +193,29 @@ static int key_sp_to_x (Display *d, int key)
 			return XKeysymToKeycode(d, XK_Y);
 		case KEY_Z:
 			return XKeysymToKeycode(d, XK_Z);
+		// for some reason uses alt char for numbers
+		case KEY_0:
+			return XKeysymToKeycode(d, XK_parenright);
+		case KEY_1:
+			return XKeysymToKeycode(d, XK_exclam);
+		case KEY_2:
+			return XKeysymToKeycode(d, XK_at);
+		case KEY_3:
+			return XKeysymToKeycode(d, XK_numbersign);
+		case KEY_4:
+			return XKeysymToKeycode(d, XK_dollar);
+		case KEY_5:
+			return XKeysymToKeycode(d, XK_percent);
+		case KEY_6:
+			return XKeysymToKeycode(d, XK_asciicircum);
+		case KEY_7:
+			return XKeysymToKeycode(d, XK_ampersand);
+		case KEY_8:
+			return XKeysymToKeycode(d, XK_asterisk);
+		case KEY_9:
+			return XKeysymToKeycode(d, XK_parenleft);
+		case KEY_SPACE:
+			return XKeysymToKeycode(d, XK_space);
 		case KEY_MINUS:
 			return XKeysymToKeycode(d, XK_minus);
 		case KEY_EQUAL:
@@ -188,6 +236,8 @@ static int key_sp_to_x (Display *d, int key)
 			return XKeysymToKeycode(d, XK_Tab);
 		case KEY_ENTER:
 			return XKeysymToKeycode(d, XK_Return);
+		case KEY_BACKSPACE:
+			return XKeysymToKeycode(d, XK_BackSpace);
 		case KEY_ESCAPE:
 			return XKeysymToKeycode(d, XK_Escape);
 		default:
@@ -378,7 +428,7 @@ int main (int argc, char **argv)
 	/* main update and render loop */
 
 	// frame cap data
-	const int target_fps = 15;
+	const int target_fps = 60;
 	const long target_npf = (long) NSEC_PER_SEC / target_fps;
 	struct timespec start_time_rt;
 	clock_gettime(CLOCK_REALTIME, &start_time_rt);

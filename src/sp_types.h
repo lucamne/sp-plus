@@ -48,9 +48,14 @@ struct sampler {
 // these restrictions are enforced by audio playback loop
 struct bus {
 	char *label; 			// bus label
+	enum {				// bus type
+		UNASSIGNED,		// affects modification of bus
+		MASTER,
+		AUX,
+		SAMPLE
+	} type;
 
 	struct sample *sample_in;	// sample inputs
-
 	struct bus** bus_ins;		// bus inputs
 	int num_bus_ins;
 
@@ -136,7 +141,7 @@ struct glyph {
 };
 
 #define NUM_FONTS 1
-enum FontTypes {MED};
+enum font_types {MED};
 struct font {
 	struct glyph *glyphs;
 	int height;		// font height approx in pixels
@@ -158,19 +163,30 @@ struct file_browser {
 	int loading_to_pad;	// true iff waiting for pad destination to load file
 };
 
+struct shell {
+	char *input_buff;
+	int input_pos;
+	int input_size;
+
+	char *output_buff;
+	int output_size;
+};
+
 // program state held by platform code
 struct sp_state {
 	struct mixer mixer;
 	struct sampler sampler;
+	struct shell shell;
 	struct file_browser file_browser;
+
 	struct font fonts[NUM_FONTS]; // array of fonts
 
 	enum {
 		SAMPLER = 0,
 		MIXER,
+		SHELL,
 		FILE_BROWSER
 	} control_mode;
 };
-
 
 #endif

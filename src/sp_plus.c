@@ -129,27 +129,30 @@ static struct frame_data process_next_frame(/*double out[], */struct sample* s)
 // Recurse from master bus down to samples. Get next frame data from samples
 // apply bus dsp to output. Each bus will have an array of bus inputs or
 // a single sample input.
-static void process_leaf_nodes(double out[], struct bus* b)
+static struct frame_data process_leaf_nodes(struct bus* b)
 {
+	struct frame_data out = {0};
 	// process sample
 	if (b->sample_in) {
 		if (b->sample_in->playing) {
-			struct frame_data tmp_out = process_next_frame(b->sample_in);
-			out[0] += tmp_out.l;
-			out[1] += tmp_out.r;
+			out = process_next_frame(b->sample_in);
 		}
-
 	// process bus inputs
 	} else {
-		for (int i = 0; i < b->num_bus_ins; i++)
-			process_leaf_nodes(out, b->bus_ins[i]);
+		for (int i = 0; i < b->num_bus_ins; i++) {
+			struct frame_data tmp = process_leaf_nodes(b->bus_ins[i]);
+			out.l += tmp.l;
+			out.r += tmp.r;
+		}
 	}
 
 	// apply bus dsp
-	out[0] *= (1.0 - b->atten);
-	out[1] *= (1.0 - b->atten);
-	out[0] *= fmin(1.0 - b->pan, 1.0);
-	out[1] *= fmin(1.0 + b->pan, 1.0);
+	out.l *= (1.0 - b->atten);
+	out.r *= (1.0 - b->atten);
+	out.l *= fmin(1.0 - b->pan, 1.0);
+	out.r *= fmin(1.0 + b->pan, 1.0);
+
+	return out;
 }
 
 // called by platform in async callback
@@ -162,21 +165,18 @@ int sp_plus_fill_audio_buffer(void *sp_state, void* buffer, int frames)
 
 	// TODO use reference instead of copy maybe?
 	struct bus *master = &((struct sp_state *) sp_state)->mixer.master;
-	static double out[NUM_CHANNELS] = {0, 0};
 	// process i frames
 	for (int i = 0; i < frames; i++){
-		out[0] = 0;
-		out[1] = 0;
-		process_leaf_nodes(out, master);
+		struct frame_data out = process_leaf_nodes(master);
 		// alsa expects 16 bit int
 		int16_t int_out[NUM_CHANNELS];
 		// convert left
-		double f = out[0] * 32768.0; 
+		double f = out.l * 32768.0; 
 		if (f > 32767.0) f = 32767.0;
 		if (f < -32768.0) f = -32768.0;
 		int_out[0] = (int16_t) f;
 		// convert right
-		f = out[1] * 32768.0; 
+		f = out.r * 32768.0; 
 		if (f > 32767.0) f = 32767.0;
 		if (f < -32768.0) f = -32768.0;
 		int_out[1] = (int16_t) f;
@@ -204,6 +204,7 @@ void *sp_plus_allocate_state(void)
 	// init mixer
 	s->mixer.master.label = malloc(strlen("master") + 1);
 	strcpy(s->mixer.master.label, "master");
+	s->mixer.master.type = MASTER;
 
 	s->mixer.master_mutex = platform_init_mutex();
 	if (!s->mixer.master_mutex) {
@@ -232,6 +233,11 @@ void *sp_plus_allocate_state(void)
 		exit(1);
 	}
 	s->sampler.max_vert = 2000;
+
+	// init shell
+	s->shell.input_size = 64;
+	s->shell.input_buff = malloc(s->shell.input_size);
+	shell_print("SAMPLER >", s);
 
 	// initialize fonts
 	void *ttf_buffer = NULL;
@@ -293,24 +299,44 @@ void sp_plus_update_and_render(
 	ASSERT(sp_state);
 	ASSERT(pixel_buf);
 
+	struct sp_state *sp = (struct sp_state *) sp_state;
+
 	/// Update State
 
 	// change control mode
 	if (is_key_pressed(input, KEY_TAB)) {
-		if (++(((struct sp_state *) sp_state)->control_mode) > FILE_BROWSER)
-			((struct sp_state *) sp_state)->control_mode = 0;
+		if (++(sp->control_mode) > FILE_BROWSER)
+			sp->control_mode = 0;
+
+		switch (sp->control_mode) {
+			case FILE_BROWSER:
+				shell_print("FILE BROWSER >", sp);
+				break;
+			case MIXER:
+				shell_print("MIXER >", sp);
+				break;
+			case SHELL:
+				shell_print(">", sp);
+				break;
+			case SAMPLER:
+			default:
+				shell_print("SAMPLER >", sp);
+		}
 	}
 
-	switch (((struct sp_state *) sp_state)->control_mode) {
+	switch (sp->control_mode) {
 		case FILE_BROWSER:
-			update_file_browser(sp_state, input);
+			update_file_browser(sp, input);
 			break;
 		case MIXER:
-			update_mixer(sp_state, input);
+			update_mixer(sp, input);
+			break;
+		case SHELL:
+			update_shell(sp, input);
 			break;
 		case SAMPLER:
 		default:
-			update_sampler(sp_state, input);
+			update_sampler(sp, input);
 	}
 
 	/// Draw UI
@@ -321,7 +347,9 @@ void sp_plus_update_and_render(
 		pixel_height};
 
 	clear_pixel_buffer(&buffer);
-	draw_sampler(sp_state, &buffer);
-	draw_file_browser(sp_state, &buffer);
-	draw_mixer(sp_state, &buffer);
+
+	draw_sampler(sp, &buffer);
+	draw_file_browser(sp, &buffer);
+	draw_mixer(sp, &buffer);
+	draw_shell(sp, &buffer);
 }

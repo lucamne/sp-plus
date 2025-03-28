@@ -231,9 +231,10 @@ void load_font(struct font *font, void *ttf_buffer, int pix_height)
 	font->glyphs->x_off = (font->glyphs + '0' - FIRST_ASCII_VAL)->w;
 }
 
-void draw_text(
+
+void draw_ntext(
 		const struct pixel_buffer *pix_buff, 
-		const char *text, const struct font *font, 
+		const char *text, int len, const struct font *font, 
 		vec2i pos, Color color)
 {
 	// pos = transform_vec2i(pix_buff, pos);
@@ -244,7 +245,7 @@ void draw_text(
 	const char *c = text;
 
 	// iterate through text
-	while (*c != '\0') {
+	for (int text_pos = 0; text_pos < len; text_pos++) {
 		const struct glyph *g = font->glyphs + *c - FIRST_ASCII_VAL;
 		int x_off = g->x_off;
 
@@ -283,9 +284,17 @@ void draw_text(
 	}
 }
 
-int get_text_width (const char *text, const struct font *font)
+void draw_text(
+		const struct pixel_buffer *pix_buff, 
+		const char *text, const struct font *font, 
+		vec2i pos, Color color)
 {
-	if (!text || !font) return 0;
+	draw_ntext(pix_buff, text, strlen(text), font, pos, color);
+}
+
+int get_ntext_width (const char *text, int len, const struct font *font)
+{
+	if (!len) return 0;
 
 	// don't want to add x_off to first char
 	const char *c = text;
@@ -293,12 +302,18 @@ int get_text_width (const char *text, const struct font *font)
 	int width = g->w;
 	c++;
 
-	while (*c != '\0') {
+	for (int i = 0; i < len; i++) {
 		g = font->glyphs + *c - FIRST_ASCII_VAL;
 		width += g->w + g->x_off;
 		c++;
 	}
 	return width;
+}
+
+int get_text_width (const char *text, const struct font *font)
+{
+	if (!text || !font) return 0;
+	return get_ntext_width(text, strlen(text), font);
 }
 
 char *truncate_text_to_width(const char *text, const struct font *font, int max_width, int trunc_start)

@@ -505,12 +505,26 @@ static void draw_mixer(struct sp_state *sp_state, struct pixel_buffer *pix_buff)
 		struct bus *curr_bus = mixer->bus_list[i];
 		Color txt_color;
 
+		// color bus background and choose text color
 		if (mixer->selected_bus == i) {
 			draw_rec(pix_buff, bus_pos, BORDER_W, BUS_HEIGHT, WHITE);
 			txt_color = BLACK;
 		} else {
-			draw_rec_outline(pix_buff, bus_pos, BORDER_W, BUS_HEIGHT, WHITE);
 			txt_color = WHITE;
+			switch (curr_bus->type) {
+				case MASTER:
+					draw_rec(pix_buff, bus_pos, BORDER_W, BUS_HEIGHT, GREEN);
+					break;
+				case SAMPLE:
+					draw_rec(pix_buff, bus_pos, BORDER_W, BUS_HEIGHT, BLUE);
+					break;
+				case AUX:
+					draw_rec(pix_buff, bus_pos, BORDER_W, BUS_HEIGHT, ORANGE);
+					break;
+				case UNASSIGNED:
+				default:
+					draw_rec_outline(pix_buff, bus_pos, BORDER_W, BUS_HEIGHT, WHITE);
+			}
 		}
 
 		// bus label / output
@@ -566,6 +580,33 @@ static void draw_mixer(struct sp_state *sp_state, struct pixel_buffer *pix_buff)
 
 	// border
 	if (sp_state->control_mode == MIXER)
+		draw_rec_outline(pix_buff, origin, BORDER_W, BORDER_H, RED);
+	else
+		draw_rec_outline(pix_buff, origin, BORDER_W, BORDER_H, WHITE);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// SHELL
+
+
+static void draw_shell(struct sp_state *sp_state, struct pixel_buffer *pix_buff)
+{
+	struct shell *shell = &sp_state->shell;
+	vec2i origin = {0, 900};
+	struct font *curr_font = sp_state->fonts + MED;
+
+	int BORDER_W = 1900;
+	int BORDER_H = curr_font->height + 10;
+
+	// draw output
+	vec2i txt_pos = {origin.x + 5, origin.y};
+	draw_ntext(pix_buff, shell->output_buff, shell->output_size, curr_font, txt_pos, WHITE);
+
+	// draw input
+	txt_pos.x += 10 + get_ntext_width(shell->output_buff, shell->output_size, curr_font);
+	draw_ntext(pix_buff, shell->input_buff, shell->input_pos, curr_font, txt_pos, WHITE);
+
+	if (sp_state->control_mode == SHELL)
 		draw_rec_outline(pix_buff, origin, BORDER_W, BORDER_H, RED);
 	else
 		draw_rec_outline(pix_buff, origin, BORDER_W, BORDER_H, WHITE);
