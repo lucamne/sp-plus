@@ -302,7 +302,7 @@ int get_ntext_width (const char *text, int len, const struct font *font)
 	int width = g->w;
 	c++;
 
-	for (int i = 0; i < len; i++) {
+	for (int i = 0; i < len - 1; i++) {
 		g = font->glyphs + *c - FIRST_ASCII_VAL;
 		width += g->w + g->x_off;
 		c++;

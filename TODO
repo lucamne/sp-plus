@@ -3,6 +3,8 @@ FIGMA DESIGN: https://www.figma.com/design/Y4c5zMXcFONRbHBwzL4usA/Untitled?node-
 
 PLATFORM STUFF
 ------------------------------------------
+implement allocation
+
 Create Logging
 
 don't read inputs when window is not focused
@@ -13,7 +15,7 @@ pixel drawing seems to be shifted one right
 
 PROGRAM STUFF
 ------------------------------------------
-create a text field that can display errors, prompts, and allows for input
+save program state
 
 allow dynamic changing of audio device
 
@@ -48,9 +50,17 @@ Pass a filter_file function to platform
 
 MIXER
 ----------------------------------------------
-assign output
-
 tree view
+
+effect inserts on busses
+
+EFFECTS
+------------------------------------------------
+design effects system
+	start simple, implement birdsongs code
+	implement controls
+	Create api later
+
 
 MISC
 ----------------------------------

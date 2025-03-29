@@ -237,7 +237,6 @@ void *sp_plus_allocate_state(void)
 	// init shell
 	s->shell.input_size = 64;
 	s->shell.input_buff = malloc(s->shell.input_size);
-	shell_print("SAMPLER >", s);
 
 	// initialize fonts
 	void *ttf_buffer = NULL;
@@ -308,20 +307,8 @@ void sp_plus_update_and_render(
 		if (++(sp->control_mode) > FILE_BROWSER)
 			sp->control_mode = 0;
 
-		switch (sp->control_mode) {
-			case FILE_BROWSER:
-				shell_print("FILE BROWSER >", sp);
-				break;
-			case MIXER:
-				shell_print("MIXER >", sp);
-				break;
-			case SHELL:
-				shell_print(">", sp);
-				break;
-			case SAMPLER:
-			default:
-				shell_print("SAMPLER >", sp);
-		}
+		if (sp->control_mode == SHELL) 
+			clear_shell_print(sp_state);
 	}
 
 	switch (sp->control_mode) {

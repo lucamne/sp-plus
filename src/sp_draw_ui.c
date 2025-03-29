@@ -521,7 +521,6 @@ static void draw_mixer(struct sp_state *sp_state, struct pixel_buffer *pix_buff)
 				case AUX:
 					draw_rec(pix_buff, bus_pos, BORDER_W, BUS_HEIGHT, ORANGE);
 					break;
-				case UNASSIGNED:
 				default:
 					draw_rec_outline(pix_buff, bus_pos, BORDER_W, BUS_HEIGHT, WHITE);
 			}
@@ -545,6 +544,7 @@ static void draw_mixer(struct sp_state *sp_state, struct pixel_buffer *pix_buff)
 	}
 
 	// delete dialog 
+	/*
 	if (mixer->update_mode == DELETE) {
 		int DLG_BOX_H = BORDER_H / 4;
 		int DLG_BOX_W = BORDER_W / 2;
@@ -577,6 +577,7 @@ static void draw_mixer(struct sp_state *sp_state, struct pixel_buffer *pix_buff)
 
 		draw_text(pix_buff, txt, curr_font, (vec2i) {dlg_box_pos.x + 10, dlg_box_pos.y + 5}, WHITE);
 	}
+	*/
 
 	// border
 	if (sp_state->control_mode == MIXER)
@@ -597,13 +598,44 @@ static void draw_shell(struct sp_state *sp_state, struct pixel_buffer *pix_buff)
 
 	int BORDER_W = 1900;
 	int BORDER_H = curr_font->height + 10;
+	int MODE_W = 130;
 
-	// draw output
+	// display dontrol mode 
 	vec2i txt_pos = {origin.x + 5, origin.y};
-	draw_ntext(pix_buff, shell->output_buff, shell->output_size, curr_font, txt_pos, WHITE);
 
-	// draw input
-	txt_pos.x += 10 + get_ntext_width(shell->output_buff, shell->output_size, curr_font);
+	const char *mode;
+	switch (sp_state->control_mode) {
+		case SAMPLER:
+			mode = "sampler";
+			break;
+		case MIXER:
+			mode = "mixer";
+			break;
+		case FILE_BROWSER:
+			mode = "file browser";
+			break;
+		case SHELL:
+			mode = "shell";
+			break;
+		default:
+			mode = "";
+			break;
+	}
+	draw_rec(pix_buff, origin, MODE_W, BORDER_H, WHITE);
+	draw_text(pix_buff, mode, curr_font, txt_pos, BLACK);
+
+	// draw '>' char at start of line
+	txt_pos.x = MODE_W + 5; 
+	draw_text(pix_buff, ">", curr_font, txt_pos, WHITE);
+	txt_pos.x += 5 + get_text_width(">", curr_font);
+
+	// draw print buffer 
+	if (shell->print_size) {
+		draw_ntext(pix_buff, shell->print_buff, shell->print_size, curr_font, txt_pos, WHITE);
+		txt_pos.x += get_ntext_width(shell->print_buff, shell->print_size, curr_font);
+	}
+
+	// draw input buffer
 	draw_ntext(pix_buff, shell->input_buff, shell->input_pos, curr_font, txt_pos, WHITE);
 
 	if (sp_state->control_mode == SHELL)

@@ -49,9 +49,8 @@ struct sampler {
 struct bus {
 	char *label; 			// bus label
 	enum {				// bus type
-		UNASSIGNED,		// affects modification of bus
-		MASTER,
-		AUX,
+		AUX,			// affects modification of bus
+		MASTER,			
 		SAMPLE
 	} type;
 
@@ -63,7 +62,7 @@ struct bus {
 
 	float atten;			// attenuation gain, [0.0, 1.0]
 	float pan;			// -1.0 = L, 1.0 = R
-	
+
 	// bool active;			// should data be grabbed from bus
 	// bool solo;			// is this bus soloed
 };
@@ -74,7 +73,7 @@ struct mixer {
 	struct bus master;		// bus tree root
 					// gets passed to playback code
 	void *master_mutex;		// mutex for bus tree
-	
+
 	struct bus **bus_list;		// pointers to busses to be used by ui
 					// need a lock for this if update
 					// and ui code run conccurently
@@ -82,16 +81,16 @@ struct mixer {
 	int num_bus;			// number of busses
 	int next_label;			// give a new bus this number
 
- 	int selected_bus;		// currently hovered bus
+	int selected_bus;		// currently hovered bus
 
 	enum {				// controls update pattern for mixer update
 		NORMAL = 0,
 		DELETE,
-		RENAME
+		RENAME,
+		CHANGE_OUTPUT
 	} update_mode;
 
-	char *r_buff;			// buffer used when capturing input to rename bus
-	int r_buff_pos;			// next byte to write in r_buff
+	struct bus *child_bus;		// tracks child bus for CHANGE_OUTPUT mode
 };
 
 // container for audio data
@@ -124,7 +123,7 @@ struct sample {
 
 	bool gate_closed;	// need to know when gate closes to apply release
 	int32_t gate_release;	// used to calculate release after gate is closed
-	// how many frames have passed since gate was closed
+				// how many frames have passed since gate was closed
 	double gate_release_cnt;
 	double gate_close_gain; // gain at time of gate close
 
@@ -163,13 +162,14 @@ struct file_browser {
 	int loading_to_pad;	// true iff waiting for pad destination to load file
 };
 
+// interactive shell data
 struct shell {
-	char *input_buff;
-	int input_pos;
-	int input_size;
+	char *input_buff;	// stores user input
+	int input_pos;		// next char to write in input buff
+	int input_size;		// input buffer size
 
-	char *output_buff;
-	int output_size;
+	char *print_buff;	// stores text to printed to shell
+	int print_size;		// size of print buff
 };
 
 // program state held by platform code
