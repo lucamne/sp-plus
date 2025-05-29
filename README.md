@@ -1,6 +1,8 @@
 # sp-plus
 Audio production program designed to mimic the workflow of the Roland SP-404 MKII sampler while being lightweight, fast, and portable.
 
+![alt text](https://github.com/lucamne/sp-plus/blob/main/demo_scrnsht.png "Demo Screenshot")
+
 ## Goals
 - Simple UI
 - Keyboard controls
